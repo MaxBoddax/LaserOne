@@ -1,0 +1,131 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="using:LaserOne.Views"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+        x:Class="LaserOne.Views.MainWindow"
+        Title="LaserOne - CAD per Sculpfun"
+        Width="1280" Height="800">
+
+	<DockPanel LastChildFill="True">
+
+		<!-- 1. MENU SUPERIORE -->
+		<Menu DockPanel.Dock="Top" Background="#FFF0F0F0">
+			<MenuItem Header="_File">
+				<MenuItem Header="_Nuovo"/>
+				<MenuItem Header="_Apri..."/>
+				<Separator/>
+				<MenuItem Header="_Esci"/>
+			</MenuItem>
+			<MenuItem Header="_Modifica">
+				<MenuItem Header="_Annulla"/>
+				<MenuItem Header="_Ripeti"/>
+			</MenuItem>
+			<MenuItem Header="_Macchina">
+				<MenuItem Header="_Connetti (USB)"/>
+				<MenuItem Header="_Impostazioni CNC"/>
+			</MenuItem>
+			<MenuItem Header="_Visualizza">
+				<MenuItem Header="_Centra Vista"/>
+			</MenuItem>
+		</Menu>
+
+		<!-- 2. BARRA DI STATO IN BASSO -->
+		<Border DockPanel.Dock="Bottom" Height="26" Background="#FF2D2D30" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
+			<Grid ColumnDefinitions="*, Auto">
+				<TextBlock Text="Pronto. Seleziona uno strumento o inserisci comando..." VerticalAlignment="Center" FontSize="11" Foreground="#FFDCDCDC"/>
+				<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
+					<TextBlock Text="X: 0.00" FontSize="11" Foreground="#FF9CDCFE"/>
+					<TextBlock Text="Y: 0.00" FontSize="11" Foreground="#FF9CDCFE"/>
+					<TextBlock Text="Pronto" FontSize="11" Foreground="#FF4EC9B0"/>
+				</StackPanel>
+			</Grid>
+		</Border>
+
+		<!-- 3. BARRA SNAP / OPZIONI GEOMETRICHE IN BASSO -->
+		<Border DockPanel.Dock="Bottom" Height="32" Background="#FF333338" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
+			<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+				<StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+					<TextBlock Text="Snap:" FontWeight="Bold" FontSize="11" Foreground="#FF569CD6" VerticalAlignment="Center"/>
+					<CheckBox Content="Endpoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Midpoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Center" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Quadrant" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Intersection" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Perpendicular" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Tangent" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Nearest" IsChecked="False" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Grid" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="SmartPoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Ortho" IsChecked="False" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+				</StackPanel>
+			</ScrollViewer>
+		</Border>
+
+		<!-- 4. PANNELLO DESTRA (Controllo e Proprietà) -->
+		<Border DockPanel.Dock="Right" Width="280" Background="#FFF4F4F4" BorderBrush="#FFDDDDDD" BorderThickness="1,0,0,0">
+			<StackPanel Margin="10" Spacing="10">
+				<TextBlock Text="Pannello Controllo" FontWeight="Bold" FontSize="14"/>
+
+				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="140">
+					<StackPanel Spacing="5">
+						<TextBlock Text="Stato GRBL: Disconnesso" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+						<TextBlock Text="X: 0.00 mm" FontSize="11"/>
+						<TextBlock Text="Y: 0.00 mm" FontSize="11"/>
+						<Button Content="Connetti Sculpfun" HorizontalAlignment="Stretch" Margin="0,5,0,0"/>
+					</StackPanel>
+				</Border>
+
+				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="220">
+					<StackPanel Spacing="5">
+						<TextBlock Text="Proprietà Oggetto" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+						<TextBlock Text="Nessuna selezione" FontSize="11" FontStyle="Italic" Foreground="Gray"/>
+					</StackPanel>
+				</Border>
+			</StackPanel>
+		</Border>
+
+		<!-- 5. PANNELLO SINISTRA: MENU DISEGNA -->
+		<Border DockPanel.Dock="Left" Width="170" BorderBrush="#FFCCE0E0" BorderThickness="0,0,1,0">
+			<Panel Background="#FFE6F2F2">
+				<ScrollViewer VerticalScrollBarVisibility="Auto">
+					<StackPanel Margin="8" Spacing="4">
+						<TextBlock Text="DISEGNA" FontWeight="Bold" FontSize="12" Foreground="#FF006666" Margin="4,4,4,8"/>
+
+						<Button Content="Punto" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6"/>
+						<Button Content="Dividi" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6"/>
+						<Button Content="Testo" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6"/>
+
+						<!-- PULSANTE FORME RAGGRUPPATO CON MENU A CASCATA -->
+						<Button HorizontalAlignment="Stretch" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6">
+							<Button.Flyout>
+								<MenuFlyout Placement="BottomEdgeAlignedLeft">
+									<MenuItem Header="Rettangolo" Click="RectangleMenuItem_Click"/>
+									<MenuItem Header="Linea"/>
+									<MenuItem Header="Cerchio"/>
+									<MenuItem Header="Ellisse"/>
+									<MenuItem Header="Arco"/>
+									<MenuItem Header="Polilinea"/>
+									<MenuItem Header="Spline"/>
+									<MenuItem Header="Poligono"/>
+								</MenuFlyout>
+							</Button.Flyout>
+							<Grid ColumnDefinitions="*, Auto" Width="124">
+								<TextBlock Text="Rettangolo" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+								<TextBlock Grid.Column="1" Text="▼" FontSize="8" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="Gray" Margin="4,0,0,0"/>
+							</Grid>
+						</Button>
+
+					</StackPanel>
+				</ScrollViewer>
+			</Panel>
+		</Border>
+
+		<!-- 6. AREA CENTRALE: Il controllo personalizzato LaserOne -->
+		<Grid>
+			<views:LaserOne Name="MyLaserCanvas" />
+		</Grid>
+
+	</DockPanel>
+</Window>
