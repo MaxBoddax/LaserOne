@@ -12,6 +12,14 @@ namespace LaserOne.Views;
 
 public class LaserOne : Control
 {
+    private enum ToolMode
+    {
+        Selection,
+        Rectangle
+    }
+
+    private ToolMode _currentTool = ToolMode.Selection;
+
     private double m_zoomFactor = 1.0;
     private Point m_panOffset = new Point(0, 0);
     private Point m_lastMousePos;
@@ -20,8 +28,15 @@ public class LaserOne : Control
 
     // Strumento Rettangolo e stato
     private readonly RectangleTool _rectangleTool = new();
-    private bool _isRectangleToolActive = false;
     private Point2D? _currentMouseWorldPos = null;
+
+    // Gestione Selezione
+    private RectangleShape? _selectedShape = null;
+    public event Action<RectangleShape?, bool>? SelectionChanged;
+
+    // Gestione Snap alla Griglia
+    public bool IsGridSnapEnabled { get; set; } = true;
+    private const double GridStep = 50.0; // Passo della griglia in mm
 
     // Lista delle forme disegnate sul canvas
     private readonly List<RectangleShape> _shapes = new();
@@ -31,11 +46,47 @@ public class LaserOne : Control
         Focusable = true;
     }
 
-    public void ActivateRectangleTool()
+    private void SetSelectedShape(RectangleShape? shape, bool isEnabled)
     {
-        _isRectangleToolActive = true;
+        _selectedShape = shape;
+        SelectionChanged?.Invoke(_selectedShape, isEnabled);
+    }
+
+    public void ActivateSelectionTool()
+    {
+        _currentTool = ToolMode.Selection;
         _rectangleTool.Reset();
         InvalidateVisual();
+    }
+
+    public void ActivateRectangleTool()
+    {
+        _currentTool = ToolMode.Rectangle;
+        _rectangleTool.Reset();
+        SetSelectedShape(null, false);
+        InvalidateVisual();
+    }
+
+    public void UpdateSelectedShapeProperties(double x, double y, double width, double height)
+    {
+        if (_selectedShape != null)
+        {
+            _selectedShape.X = x;
+            _selectedShape.Y = y;
+            _selectedShape.Width = Math.Max(1, width);
+            _selectedShape.Height = Math.Max(1, height);
+            InvalidateVisual();
+        }
+    }
+
+    private Point2D SnapToGrid(Point2D worldPoint)
+    {
+        if (!IsGridSnapEnabled)
+            return worldPoint;
+
+        double snappedX = Math.Round(worldPoint.X / GridStep, MidpointRounding.AwayFromZero) * GridStep;
+        double snappedY = Math.Round(worldPoint.Y / GridStep, MidpointRounding.AwayFromZero) * GridStep;
+        return new Point2D(snappedX, snappedY);
     }
 
     public override void Render(DrawingContext context)
@@ -73,26 +124,37 @@ public class LaserOne : Control
             foreach (var rect in _shapes)
             {
                 var rectGeometry = new Rect(rect.X, rect.Y, rect.Width, rect.Height);
-                context.DrawRectangle(Brushes.Transparent, new Pen(Brushes.Red, 1.5 / m_zoomFactor), rectGeometry);
+                bool isSelected = (rect == _selectedShape);
+
+                var pen = isSelected
+                    ? new Pen(Brushes.Blue, 2.0 / m_zoomFactor)
+                    : new Pen(Brushes.Red, 1.5 / m_zoomFactor);
+
+                IBrush fill = isSelected
+                    ? new SolidColorBrush(Color.FromArgb(40, 0, 120, 255))
+                    : Brushes.Transparent;
+
+                context.DrawRectangle(fill, pen, rectGeometry);
             }
 
-            // Disegna l'anteprima (rubber-band) in tempo reale mentre si trascina il secondo punto
-            if (_isRectangleToolActive && _rectangleTool.IsDrawing && _currentMouseWorldPos.HasValue)
+            // Disegna l'anteprima (rubber-band) in tempo reale
+            if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing && _currentMouseWorldPos.HasValue)
             {
-                var previewRect = RectangleTool.CreateRectangle(_rectangleTool.FirstCorner, _currentMouseWorldPos.Value);
+                var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
+                var previewRect = RectangleTool.CreateRectangle(_rectangleTool.FirstCorner, snappedCurrentPos);
                 var previewGeom = new Rect(previewRect.X, previewRect.Y, previewRect.Width, previewRect.Height);
                 var dashPen = new Pen(Brushes.Gray, 1.0 / m_zoomFactor);
                 context.DrawRectangle(Brushes.Transparent, dashPen, previewGeom);
             }
         }
 
-        // 2. Righelli dinamici fissi sui bordi (superiore e sinistro)
+        // 2. Righelli dinamici fissi sui bordi
         DrawRulers(context, Bounds.Width, Bounds.Height);
     }
 
     private void DrawGrid(DrawingContext context)
     {
-        double step = 50;
+        double step = GridStep;
         var gridPen = new Pen(Brushes.Gainsboro, 0.5);
         var axisPen = new Pen(Brushes.DarkGray, 1);
 
@@ -123,10 +185,9 @@ public class LaserOne : Control
         var tickPen = new Pen(Brushes.DimGray, 1);
         var textBrush = Brushes.DarkSlateGray;
 
-        // Sfondi barre righelli fissi
-        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, width, rulerSize)); // Superiore
-        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, rulerSize, height)); // Sinistro
-        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, rulerSize, rulerSize)); // Angolo in alto a sinistra
+        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, width, rulerSize));
+        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, rulerSize, height));
+        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, rulerSize, rulerSize));
 
         double targetPixelSpacing = 80.0;
         double rawWorldSpacing = targetPixelSpacing / m_zoomFactor;
@@ -218,14 +279,39 @@ public class LaserOne : Control
             return;
         }
 
-        // Disegno con tasto sinistro se il tool rettangolo è attivo
-        if (props.IsLeftButtonPressed && _isRectangleToolActive)
+        // 1. Modalità Selezione
+        if (props.IsLeftButtonPressed && _currentTool == ToolMode.Selection)
         {
             var worldPos = ScreenToWorld(e.GetPosition(this));
+            RectangleShape? found = null;
 
-            _rectangleTool.OnMouseDown(worldPos, rect =>
+            for (int i = _shapes.Count - 1; i >= 0; i--)
+            {
+                var rect = _shapes[i];
+                if (worldPos.X >= rect.X && worldPos.X <= rect.X + rect.Width &&
+                    worldPos.Y >= rect.Y && worldPos.Y <= rect.Y + rect.Height)
+                {
+                    found = rect;
+                    break;
+                }
+            }
+
+            SetSelectedShape(found, found != null);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        // 2. Modalità Disegno Rettangolo
+        if (props.IsLeftButtonPressed && _currentTool == ToolMode.Rectangle)
+        {
+            var rawWorldPos = ScreenToWorld(e.GetPosition(this));
+            var snappedWorldPos = SnapToGrid(rawWorldPos);
+
+            _rectangleTool.OnMouseDown(snappedWorldPos, rect =>
             {
                 _shapes.Add(rect);
+                SetSelectedShape(rect, true); // Abilita i controlli a disegno completato
             });
 
             InvalidateVisual();
@@ -233,8 +319,8 @@ public class LaserOne : Control
             return;
         }
 
-        // Pan con tasto sinistro sullo sfondo vuoto se nessun tool è attivo
-        if (props.IsLeftButtonPressed && !_isRectangleToolActive)
+        // Pan con tasto sinistro sullo sfondo
+        if (props.IsLeftButtonPressed)
         {
             m_isPanning = true;
             m_lastMousePos = e.GetPosition(this);
@@ -260,8 +346,13 @@ public class LaserOne : Control
 
         _currentMouseWorldPos = ScreenToWorld(e.GetPosition(this));
 
-        if (_isRectangleToolActive && _rectangleTool.IsDrawing)
+        if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing)
         {
+            // Calcola l'anteprima e aggiorna i campi numerici in tempo reale ma mantenendoli disabilitati (grigiati)
+            var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
+            var previewRect = RectangleTool.CreateRectangle(_rectangleTool.FirstCorner, snappedCurrentPos);
+            SelectionChanged?.Invoke(previewRect, false);
+
             InvalidateVisual();
         }
     }
@@ -296,5 +387,18 @@ public class LaserOne : Control
         m_zoomFactor = newZoom;
         InvalidateVisual();
         e.Handled = true;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if ((e.Key == Key.Delete || e.Key == Key.Back) && _selectedShape != null)
+        {
+            _shapes.Remove(_selectedShape);
+            SetSelectedShape(null, false);
+            InvalidateVisual();
+            e.Handled = true;
+        }
     }
 }

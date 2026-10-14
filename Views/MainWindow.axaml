@@ -7,10 +7,8 @@
         x:Class="LaserOne.Views.MainWindow"
         Title="LaserOne - CAD per Sculpfun"
         Width="1280" Height="800">
-
 	<DockPanel LastChildFill="True">
-
-		<!-- 1. MENU SUPERIORE -->
+		<!--MENU SUPERIORE -->
 		<Menu DockPanel.Dock="Top" Background="#FFF0F0F0">
 			<MenuItem Header="_File">
 				<MenuItem Header="_Nuovo"/>
@@ -56,7 +54,7 @@
 					<CheckBox Content="Perpendicular" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
 					<CheckBox Content="Tangent" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
 					<CheckBox Content="Nearest" IsChecked="False" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Grid" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox x:Name="GridSnapCheckBox" Content="Grid" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0" IsCheckedChanged="GridSnapCheckBox_IsCheckedChanged"/>
 					<CheckBox Content="SmartPoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
 					<CheckBox Content="Ortho" IsChecked="False" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
 				</StackPanel>
@@ -68,19 +66,43 @@
 			<StackPanel Margin="10" Spacing="10">
 				<TextBlock Text="Pannello Controllo" FontWeight="Bold" FontSize="14"/>
 
-				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="140">
-					<StackPanel Spacing="5">
-						<TextBlock Text="Stato GRBL: Disconnesso" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+				<!-- PANNELLO CONNESSIONE USB & COMBOBOX PORTE -->
+				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="170">
+					<StackPanel Spacing="6">
+						<TextBlock x:Name="GrblStatusText" Text="Stato GRBL: Disconnesso" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+
+						<Grid ColumnDefinitions="*, Auto" ColumnSpacing="5">
+							<ComboBox x:Name="PortComboBox" Grid.Column="0" HorizontalAlignment="Stretch" PlaceholderText="Seleziona COM..."/>
+							<Button Grid.Column="1" Content="🔄" Click="RefreshPorts_Click" ToolTip.Tip="Aggiorna porte COM" VerticalAlignment="Center"/>
+						</Grid>
+
 						<TextBlock Text="X: 0.00 mm" FontSize="11"/>
 						<TextBlock Text="Y: 0.00 mm" FontSize="11"/>
-						<Button Content="Connetti Sculpfun" HorizontalAlignment="Stretch" Margin="0,5,0,0"/>
+
+						<Button x:Name="ConnectButton" Content="Connetti Sculpfun" HorizontalAlignment="Stretch" Margin="0,2,0,0" Click="ConnectButton_Click"/>
 					</StackPanel>
 				</Border>
 
+				<!-- PANNELLO PROPRIETÀ OGGETTO -->
 				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="220">
 					<StackPanel Spacing="5">
 						<TextBlock Text="Proprietà Oggetto" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
-						<TextBlock Text="Nessuna selezione" FontSize="11" FontStyle="Italic" Foreground="Gray"/>
+						<StackPanel x:Name="PropertiesPanel" Spacing="6" IsEnabled="False" Margin="0,4,0,0">
+							<Grid ColumnDefinitions="75, *" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5">
+								<TextBlock Grid.Row="0" Grid.Column="0" Text="X (mm):" VerticalAlignment="Center" FontSize="11"/>
+								<NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="NumX" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+								<TextBlock Grid.Row="1" Grid.Column="0" Text="Y (mm):" VerticalAlignment="Center" FontSize="11"/>
+								<NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="NumY" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+								<TextBlock Grid.Row="2" Grid.Column="0" Text="Larghezza:" VerticalAlignment="Center" FontSize="11"/>
+								<NumericUpDown Grid.Row="2" Grid.Column="1" x:Name="NumWidth" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+								<TextBlock Grid.Row="3" Grid.Column="0" Text="Altezza:" VerticalAlignment="Center" FontSize="11"/>
+								<NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="NumHeight" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+							</Grid>
+						</StackPanel>
+						<TextBlock x:Name="NoSelectionText" Text="Nessuna selezione" FontSize="11" FontStyle="Italic" Foreground="Gray" Margin="0,5,0,0"/>
 					</StackPanel>
 				</Border>
 			</StackPanel>
@@ -92,7 +114,7 @@
 				<ScrollViewer VerticalScrollBarVisibility="Auto">
 					<StackPanel Margin="8" Spacing="4">
 						<TextBlock Text="DISEGNA" FontWeight="Bold" FontSize="12" Foreground="#FF006666" Margin="4,4,4,8"/>
-
+						<Button Content="➔ Seleziona" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6" Click="SelectionMenuItem_Click"/>
 						<Button Content="Punto" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6"/>
 						<Button Content="Dividi" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6"/>
 						<Button Content="Testo" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6"/>
@@ -116,7 +138,6 @@
 								<TextBlock Grid.Column="1" Text="▼" FontSize="8" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="Gray" Margin="4,0,0,0"/>
 							</Grid>
 						</Button>
-
 					</StackPanel>
 				</ScrollViewer>
 			</Panel>
@@ -126,6 +147,5 @@
 		<Grid>
 			<views:LaserOne Name="MyLaserCanvas" />
 		</Grid>
-
 	</DockPanel>
 </Window>
