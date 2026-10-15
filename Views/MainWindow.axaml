@@ -62,50 +62,127 @@
 		</Border>
 
 		<!-- 4. PANNELLO DESTRA (Controllo e Proprietà) -->
-		<Border DockPanel.Dock="Right" Width="280" Background="#FFF4F4F4" BorderBrush="#FFDDDDDD" BorderThickness="1,0,0,0">
-			<StackPanel Margin="10" Spacing="10">
-				<TextBlock Text="Pannello Controllo" FontWeight="Bold" FontSize="14"/>
+		<Border DockPanel.Dock="Right" Width="290" Background="#FFF4F4F4" BorderBrush="#FFDDDDDD" BorderThickness="1,0,0,0">
+			<ScrollViewer VerticalScrollBarVisibility="Auto">
+				<StackPanel Margin="8" Spacing="8">
+					<TextBlock Text="Pannello Controllo" FontWeight="Bold" FontSize="14"/>
 
-				<!-- PANNELLO CONNESSIONE USB & COMBOBOX PORTE -->
-				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="170">
-					<StackPanel Spacing="6">
-						<TextBlock x:Name="GrblStatusText" Text="Stato GRBL: Disconnesso" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+					<!-- PANNELLO CONTROLLO MACCHINA (GRIGLIA 3x3 CON ICONE) -->
+					<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8">
+						<StackPanel Spacing="6">
+							<TextBlock x:Name="GrblStatusText" Text="Stato GRBL: Disconnesso" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
 
-						<Grid ColumnDefinitions="*, Auto" ColumnSpacing="5">
-							<ComboBox x:Name="PortComboBox" Grid.Column="0" HorizontalAlignment="Stretch" PlaceholderText="Seleziona COM..."/>
-							<Button Grid.Column="1" Content="🔄" Click="RefreshPorts_Click" ToolTip.Tip="Aggiorna porte COM" VerticalAlignment="Center"/>
-						</Grid>
+							<!-- GRIGLIA PULSANTI 3x3 -->
+							<Grid ColumnDefinitions="*, *, *" RowDefinitions="Auto, Auto, Auto" ColumnSpacing="4" RowSpacing="4">
 
-						<TextBlock Text="X: 0.00 mm" FontSize="11"/>
-						<TextBlock Text="Y: 0.00 mm" FontSize="11"/>
+								<!-- Riga 1 -->
+								<Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M6,19H10V5H6V19M14,5V19H18V5H14Z" Width="10" Height="10"/>
+										<TextBlock Text="Pausa" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
 
-						<Button x:Name="ConnectButton" Content="Connetti Sculpfun" HorizontalAlignment="Stretch" Margin="0,2,0,0" Click="ConnectButton_Click"/>
-					</StackPanel>
-				</Border>
+								<Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z" Width="10" Height="10"/>
+										<TextBlock Text="Frame" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
 
-				<!-- PANNELLO PROPRIETÀ OGGETTO -->
-				<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Height="220">
-					<StackPanel Spacing="5">
-						<TextBlock Text="Proprietà Oggetto" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
-						<StackPanel x:Name="PropertiesPanel" Spacing="6" IsEnabled="False" Margin="0,4,0,0">
-							<Grid ColumnDefinitions="75, *" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5">
-								<TextBlock Grid.Row="0" Grid.Column="0" Text="X (mm):" VerticalAlignment="Center" FontSize="11"/>
-								<NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="NumX" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+								<Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" Width="10" Height="10"/>
+										<TextBlock Text="Salva" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
 
-								<TextBlock Grid.Row="1" Grid.Column="0" Text="Y (mm):" VerticalAlignment="Center" FontSize="11"/>
-								<NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="NumY" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+								<!-- Riga 2 -->
+								<Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M6,6H18V18H6V6Z" Width="10" Height="10"/>
+										<TextBlock Text="Stop" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
 
-								<TextBlock Grid.Row="2" Grid.Column="0" Text="Larghezza:" VerticalAlignment="Center" FontSize="11"/>
-								<NumericUpDown Grid.Row="2" Grid.Column="1" x:Name="NumWidth" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+								<Button Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M3,5H21V19H3V5M5,7V17H19V7H5Z" Width="10" Height="10"/>
+										<TextBlock Text="Frame" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
 
-								<TextBlock Grid.Row="3" Grid.Column="0" Text="Altezza:" VerticalAlignment="Center" FontSize="11"/>
-								<NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="NumHeight" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+								<Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M10,16.5L16,12L10,7.5V16.5Z" Width="10" Height="10"/>
+										<TextBlock Text="Esegui" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
+
+								<!-- Riga 3 -->
+								<Button Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="10" Height="10" Foreground="DarkGreen"/>
+										<TextBlock Text="Avvio" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
+
+								<Button Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z" Width="10" Height="10"/>
+										<TextBlock Text="Home" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
+
+								<Button Grid.Row="2" Grid.Column="2" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
+									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+										<PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10Z" Width="10" Height="10"/>
+										<TextBlock Text="Origine" FontSize="10" VerticalAlignment="Center"/>
+									</StackPanel>
+								</Button>
+
 							</Grid>
+
+							<!-- Coordinate Machine Live -->
+							<Grid ColumnDefinitions="*, *" Margin="0,4,0,0">
+								<TextBlock Text="X: 0.00 mm" FontSize="11" Foreground="DarkSlateGray"/>
+								<TextBlock Grid.Column="1" Text="Y: 0.00 mm" FontSize="11" Foreground="DarkSlateGray"/>
+							</Grid>
+
+							<!-- Selezione Porta COM e Connessione (Funzionante) -->
+							<Grid ColumnDefinitions="*, Auto" ColumnSpacing="4" Margin="0,2,0,0">
+								<ComboBox x:Name="PortComboBox" Grid.Column="0" HorizontalAlignment="Stretch" Height="28" PlaceholderText="Seleziona COM..."/>
+								<Button Grid.Column="1" Content="🔄" Click="RefreshPorts_Click" ToolTip.Tip="Aggiorna porte COM" Width="30" Height="28"/>
+							</Grid>
+
+							<Button x:Name="ConnectButton" Content="Connetti Sculpfun" HorizontalAlignment="Stretch" Height="30" Click="ConnectButton_Click"/>
 						</StackPanel>
-						<TextBlock x:Name="NoSelectionText" Text="Nessuna selezione" FontSize="11" FontStyle="Italic" Foreground="Gray" Margin="0,5,0,0"/>
-					</StackPanel>
-				</Border>
-			</StackPanel>
+					</Border>
+
+					<!-- PANNELLO PROPRIETÀ OGGETTO -->
+					<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8">
+						<StackPanel Spacing="5">
+							<TextBlock Text="Proprietà Oggetto" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+							<StackPanel x:Name="PropertiesPanel" Spacing="6" IsEnabled="False" Margin="0,4,0,0">
+								<Grid ColumnDefinitions="75, *" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5">
+									<TextBlock Grid.Row="0" Grid.Column="0" Text="X (mm):" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="NumX" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+									<TextBlock Grid.Row="1" Grid.Column="0" Text="Y (mm):" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="NumY" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+									<TextBlock Grid.Row="2" Grid.Column="0" Text="Larghezza:" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="2" Grid.Column="1" x:Name="NumWidth" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+									<TextBlock Grid.Row="3" Grid.Column="0" Text="Altezza:" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="NumHeight" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+								</Grid>
+							</StackPanel>
+							<TextBlock x:Name="NoSelectionText" Text="Nessuna selezione" FontSize="11" FontStyle="Italic" Foreground="Gray" Margin="0,5,0,0"/>
+						</StackPanel>
+					</Border>
+				</StackPanel>
+			</ScrollViewer>
 		</Border>
 
 		<!-- 5. PANNELLO SINISTRA: MENU DISEGNA -->

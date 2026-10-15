@@ -1,5 +1,6 @@
 using System;
 using System.IO.Ports;
+using System.Threading;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -52,40 +53,112 @@ public partial class MainWindow : Window
     {
         if (!_isConnected)
         {
-            try
+            string? selectedPort = PortComboBox.SelectedItem?.ToString();
+
+            if (string.IsNullOrEmpty(selectedPort))
             {
-                string? selectedPort = PortComboBox.SelectedItem?.ToString();
+                GrblStatusText.Text = "Stato GRBL: Seleziona una porta COM";
+                GrblStatusText.Foreground = Brushes.Red;
+                return;
+            }
 
-                if (string.IsNullOrEmpty(selectedPort))
-                {
-                    GrblStatusText.Text = "Stato GRBL: Seleziona una porta COM";
-                    GrblStatusText.Foreground = Brushes.Red;
-                    return;
-                }
+            GrblStatusText.Text = "Stato GRBL: Connessione in corso...";
+            GrblStatusText.Foreground = Brushes.DarkOrange;
 
-                _serialPort = new SerialPort(selectedPort, 115200)
-                {
-                    ReadTimeout = 500,
-                    WriteTimeout = 500
-                };
-
-                _serialPort.Open();
+            // Tentativo di connessione con verifica avanzata del dispositivo GRBL
+            if (TryConnectAndVerifyGrbl(selectedPort))
+            {
                 _isConnected = true;
-
                 GrblStatusText.Text = $"Stato GRBL: Connesso ({selectedPort})";
                 GrblStatusText.Foreground = Brushes.DarkGreen;
                 ConnectButton.Content = "Disconnetti";
                 PortComboBox.IsEnabled = false;
             }
-            catch (Exception)
+            else
             {
-                GrblStatusText.Text = "Stato GRBL: Errore di connessione";
+                GrblStatusText.Text = "Stato GRBL: Nessun laser GRBL rilevato";
                 GrblStatusText.Foreground = Brushes.Red;
             }
         }
         else
         {
             DisconnectGrbl();
+        }
+    }
+
+    private bool TryConnectAndVerifyGrbl(string portName)
+    {
+        try
+        {
+            _serialPort = new SerialPort(portName, 115200)
+            {
+                ReadTimeout = 2000,
+                WriteTimeout = 500,
+                DtrEnable = true,
+                RtsEnable = true,
+                NewLine = "\r\n"
+            };
+
+            _serialPort.Open();
+
+            // Attende un tempo sufficiente affinché la scheda completi il reset e l'avvio
+            Thread.Sleep(1500);
+
+            string response = "";
+            try
+            {
+                response = _serialPort.ReadExisting();
+            }
+            catch (TimeoutException) { }
+
+            // Se il buffer è vuoto, invia una richiesta di stato rapida '?'
+            if (string.IsNullOrEmpty(response) || (!response.Contains("Grbl", StringComparison.OrdinalIgnoreCase) && !response.Contains("<")))
+            {
+                _serialPort.WriteLine("?");
+                Thread.Sleep(400);
+                try
+                {
+                    response += _serialPort.ReadExisting();
+                }
+                catch (TimeoutException) { }
+            }
+
+            // Se ancora non risponde, prova a interrogare il firmware con '$I'
+            if (string.IsNullOrEmpty(response) || (!response.Contains("Grbl", StringComparison.OrdinalIgnoreCase) && !response.Contains("[VER")))
+            {
+                _serialPort.WriteLine("$I");
+                Thread.Sleep(400);
+                try
+                {
+                    response += _serialPort.ReadExisting();
+                }
+                catch (TimeoutException) { }
+            }
+
+            // Verifica allargata: accetta se rileva la firma GRBL, le parentesi di stato '<', i dati di versione '[VER' o un 'ok'
+            if (!string.IsNullOrEmpty(response) &&
+                (response.Contains("Grbl", StringComparison.OrdinalIgnoreCase) ||
+                 response.Contains("<") ||
+                 response.Contains("[VER") ||
+                 response.Contains("ok")))
+            {
+                return true; // Connessione e autenticazione GRBL riuscite!
+            }
+            else
+            {
+                _serialPort.Close();
+                _serialPort = null;
+                return false;
+            }
+        }
+        catch (Exception)
+        {
+            if (_serialPort != null && _serialPort.IsOpen)
+            {
+                _serialPort.Close();
+            }
+            _serialPort = null;
+            return false;
         }
     }
 
