@@ -18,6 +18,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // Carica le impostazioni salvate (.ini) all'avvio e le applica al canvas
+        CncConfig.Load();
+        if (MyLaserCanvas != null)
+        {
+            MyLaserCanvas.WorkAreaWidth = CncConfig.WorkAreaWidth;
+            MyLaserCanvas.WorkAreaHeight = CncConfig.WorkAreaHeight;
+        }
+
         // Popola la lista delle porte seriali disponibili all'avvio
         RefreshAvailablePorts();
 
@@ -188,27 +196,41 @@ public partial class MainWindow : Window
         base.OnClosed(e);
     }
 
-    private void OnCanvasSelectionChanged(RectangleShape? selectedRect, bool isEnabled)
+    private void OnCanvasSelectionChanged(ShapeModel? selectedShape, bool isEnabled)
     {
         _isUpdatingUI = true;
 
-        if (selectedRect == null)
+        if (selectedShape == null)
         {
             PropertiesPanel.IsEnabled = false;
             NoSelectionText.IsVisible = true;
-            NumX.Value = 0;
-            NumY.Value = 0;
-            NumWidth.Value = 1;
-            NumHeight.Value = 1;
+            NumX.Value = 0m;
+            NumY.Value = 0m;
+            NumWidth.Value = 1m;
+            NumHeight.Value = 1m;
         }
         else
         {
             PropertiesPanel.IsEnabled = isEnabled;
             NoSelectionText.IsVisible = false;
-            NumX.Value = (decimal)selectedRect.X;
-            NumY.Value = (decimal)selectedRect.Y;
-            NumWidth.Value = (decimal)selectedRect.Width;
-            NumHeight.Value = (decimal)selectedRect.Height;
+            NumX.Value = (decimal)selectedShape.X;
+            NumY.Value = (decimal)selectedShape.Y;
+
+            if (selectedShape is RectangleShape rect)
+            {
+                NumWidth.Value = (decimal)rect.Width;
+                NumHeight.Value = (decimal)rect.Height;
+            }
+            else if (selectedShape is CircleShape circle)
+            {
+                NumWidth.Value = (decimal)(circle.Radius * 2);
+                NumHeight.Value = (decimal)(circle.Radius * 2);
+            }
+            else if (selectedShape is LineShape line)
+            {
+                NumWidth.Value = (decimal)Math.Abs(line.X2 - line.X);
+                NumHeight.Value = (decimal)Math.Abs(line.Y2 - line.Y);
+            }
         }
 
         _isUpdatingUI = false;
@@ -234,6 +256,37 @@ public partial class MainWindow : Window
     private void RectangleMenuItem_Click(object? sender, RoutedEventArgs e)
     {
         MyLaserCanvas.ActivateRectangleTool();
+        if (ShapeToolText != null) ShapeToolText.Text = "Rettangolo";
+        if (ShapeToolIcon != null) ShapeToolIcon.Data = Avalonia.Media.Geometry.Parse("M3,5H21V19H3V5M5,7V17H19V7H5Z");
+    }
+
+    private void LineMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        MyLaserCanvas.ActivateLineTool();
+        if (ShapeToolText != null) ShapeToolText.Text = "Linea";
+        if (ShapeToolIcon != null) ShapeToolIcon.Data = Avalonia.Media.Geometry.Parse("M19,6.41L17.59,5L7,15.59V9H5V19H15V17H8.41L19,6.41Z");
+    }
+
+    private void CircleMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        MyLaserCanvas.ActivateCircleTool();
+        if (ShapeToolText != null) ShapeToolText.Text = "Cerchio";
+        if (ShapeToolIcon != null) ShapeToolIcon.Data = Avalonia.Media.Geometry.Parse("M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z");
+    }
+
+    private void CncSettingsMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new CncSettingsWindow();
+        settingsWindow.ShowDialog(this);
+
+        // Ricarica le impostazioni e aggiorna il canvas alla chiusura
+        CncConfig.Load();
+        if (MyLaserCanvas != null)
+        {
+            MyLaserCanvas.WorkAreaWidth = CncConfig.WorkAreaWidth;
+            MyLaserCanvas.WorkAreaHeight = CncConfig.WorkAreaHeight;
+            MyLaserCanvas.InvalidateVisual();
+        }
     }
 
     private void GridSnapCheckBox_IsCheckedChanged(object? sender, RoutedEventArgs e)

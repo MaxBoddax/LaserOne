@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LaserOne.Views.CncSettingsWindow"
+        Title="Impostazioni CNC e Area di Lavoro"
+        Width="480" Height="420" WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*, Auto, Auto" Margin="16" RowSpacing="12">
+        
+        <!-- SEZIONE ALBERO MARCHE / MODELLI -->
+        <DockPanel Grid.Row="0">
+            <TextBlock DockPanel.Dock="Top" Text="Seleziona Modello Laser:" FontWeight="Bold" Margin="0,0,0,6"/>
+            <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4">
+                <TreeView x:Name="CncTreeView" SelectionChanged="CncTreeView_SelectionChanged">
+                    <TreeViewItem Header="Sculpfun">
+                        <TreeViewItem Header="Sculpfun S9 (410x400)"/>
+                        <TreeViewItem Header="Sculpfun S30 Pro Max (400x400)"/>
+                        <TreeViewItem Header="Sculpfun SF-A9 (600x600)"/>
+                    </TreeViewItem>
+                    <TreeViewItem Header="Ortur">
+                        <TreeViewItem Header="Ortur Laser Master 2 (400x430)"/>
+                        <TreeViewItem Header="Ortur LM3 24W (400x850)"/>
+                    </TreeViewItem>
+                    <TreeViewItem Header="xTool">
+                        <TreeViewItem Header="xTool D1 Pro (430x400)"/>
+                        <TreeViewItem Header="xTool S1 (498x319)"/>
+                    </TreeViewItem>
+                </TreeView>
+            </Border>
+        </DockPanel>
+
+        <!-- SEZIONE DIMENSIONI AREA DI LAVORO -->
+        <Border Grid.Row="1" Background="#F9F9F9" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="12">
+            <StackPanel Spacing="8">
+                <TextBlock Text="Dimensioni Area di Lavoro Effettiva (mm):" FontWeight="SemiBold"/>
+                <Grid ColumnDefinitions="Auto, *, Auto, *" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0" Text="Larghezza X:" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Column="1" x:Name="TxtWidth" Minimum="50" Maximum="5000" Increment="10" FormatString="0"/>
+                    
+                    <TextBlock Grid.Column="2" Text="Altezza Y:" VerticalAlignment="Center"/>
+                    <NumericUpDown Grid.Column="3" x:Name="TxtHeight" Minimum="50" Maximum="5000" Increment="10" FormatString="0"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- PULSANTI SALVA / ANNULLA -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Content="Annulla" Width="90" HorizontalContentAlignment="Center" Click="Cancel_Click"/>
+            <Button Content="Salva &amp; Applica" Width="120" HorizontalContentAlignment="Center" Background="#006666" Foreground="White" Click="Save_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

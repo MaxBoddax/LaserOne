@@ -15,7 +15,9 @@ public class LaserOne : Control
     private enum ToolMode
     {
         Selection,
-        Rectangle
+        Rectangle,
+        Line,
+        Circle
     }
 
     private ToolMode _currentTool = ToolMode.Selection;
@@ -26,27 +28,37 @@ public class LaserOne : Control
     private bool m_isPanning = false;
     private bool m_isInitialized = false;
 
-    // Strumento Rettangolo e stato
+    // Dimensioni Area di Lavoro (configurate da CncConfig)
+    public double WorkAreaWidth { get; set; } = CncConfig.WorkAreaWidth;
+    public double WorkAreaHeight { get; set; } = CncConfig.WorkAreaHeight;
+
+    private const double RulerSize = 22.0;
+
+    // Strumenti e stato di disegno
     private readonly RectangleTool _rectangleTool = new();
     private Point2D? _currentMouseWorldPos = null;
 
-    // Gestione Selezione
-    private RectangleShape? _selectedShape = null;
-    public event Action<RectangleShape?, bool>? SelectionChanged;
+    // Stato temporaneo per Linea e Cerchio
+    private Point2D? _drawingStartPoint = null;
+    private bool _isDrawingShape = false;
 
-    // Gestione Snap alla Griglia
+    // Gestione Selezione
+    private ShapeModel? _selectedShape = null;
+    public event Action<ShapeModel?, bool>? SelectionChanged;
+
+    // Gestione Snap alla Griglia (Passo griglia millimetrata a 1mm)
     public bool IsGridSnapEnabled { get; set; } = true;
-    private const double GridStep = 50.0; // Passo della griglia in mm
+    private const double GridStep = 1.0;
 
     // Lista delle forme disegnate sul canvas
-    private readonly List<RectangleShape> _shapes = new();
+    private readonly List<ShapeModel> _shapes = new();
 
     public LaserOne()
     {
         Focusable = true;
     }
 
-    private void SetSelectedShape(RectangleShape? shape, bool isEnabled)
+    private void SetSelectedShape(ShapeModel? shape, bool isEnabled)
     {
         _selectedShape = shape;
         SelectionChanged?.Invoke(_selectedShape, isEnabled);
@@ -56,6 +68,7 @@ public class LaserOne : Control
     {
         _currentTool = ToolMode.Selection;
         _rectangleTool.Reset();
+        _isDrawingShape = false;
         InvalidateVisual();
     }
 
@@ -63,6 +76,25 @@ public class LaserOne : Control
     {
         _currentTool = ToolMode.Rectangle;
         _rectangleTool.Reset();
+        _isDrawingShape = false;
+        SetSelectedShape(null, false);
+        InvalidateVisual();
+    }
+
+    public void ActivateLineTool()
+    {
+        _currentTool = ToolMode.Line;
+        _rectangleTool.Reset();
+        _isDrawingShape = false;
+        SetSelectedShape(null, false);
+        InvalidateVisual();
+    }
+
+    public void ActivateCircleTool()
+    {
+        _currentTool = ToolMode.Circle;
+        _rectangleTool.Reset();
+        _isDrawingShape = false;
         SetSelectedShape(null, false);
         InvalidateVisual();
     }
@@ -73,139 +105,207 @@ public class LaserOne : Control
         {
             _selectedShape.X = x;
             _selectedShape.Y = y;
-            _selectedShape.Width = Math.Max(1, width);
-            _selectedShape.Height = Math.Max(1, height);
+            if (_selectedShape is RectangleShape rect)
+            {
+                rect.Width = Math.Max(1, width);
+                rect.Height = Math.Max(1, height);
+            }
             InvalidateVisual();
         }
     }
 
     private Point2D SnapToGrid(Point2D worldPoint)
     {
-        if (!IsGridSnapEnabled)
-            return worldPoint;
+        // Limiti estesi al 30% per lato
+        double minX = -WorkAreaWidth * 0.30;
+        double maxX = WorkAreaWidth * 1.30;
+        double minY = -WorkAreaHeight * 0.30;
+        double maxY = WorkAreaHeight * 1.30;
 
-        double snappedX = Math.Round(worldPoint.X / GridStep, MidpointRounding.AwayFromZero) * GridStep;
-        double snappedY = Math.Round(worldPoint.Y / GridStep, MidpointRounding.AwayFromZero) * GridStep;
+        double clampedX = Math.Clamp(worldPoint.X, minX, maxX);
+        double clampedY = Math.Clamp(worldPoint.Y, minY, maxY);
+
+        if (!IsGridSnapEnabled)
+            return new Point2D(clampedX, clampedY);
+
+        double snappedX = Math.Round(clampedX / GridStep, MidpointRounding.AwayFromZero) * GridStep;
+        double snappedY = Math.Round(clampedY / GridStep, MidpointRounding.AwayFromZero) * GridStep;
         return new Point2D(snappedX, snappedY);
+    }
+
+    private void CenterWorkArea()
+    {
+        if (Bounds.Width <= RulerSize || Bounds.Height <= RulerSize) return;
+
+        double viewWidth = Bounds.Width - RulerSize;
+        double viewHeight = Bounds.Height - RulerSize;
+
+        m_panOffset = new Point(
+            RulerSize + (viewWidth - WorkAreaWidth * m_zoomFactor) / 2.0,
+            RulerSize + (viewHeight - WorkAreaHeight * m_zoomFactor) / 2.0
+        );
     }
 
     public override void Render(DrawingContext context)
     {
         base.Render(context);
 
-        if (!m_isInitialized && Bounds.Width > 0 && Bounds.Height > 0)
+        if (Bounds.Width > 0 && Bounds.Height > 0)
         {
-            m_panOffset = new Point(Bounds.Width / 2.0, Bounds.Height / 2.0);
-            m_zoomFactor = 1.2;
-            m_isInitialized = true;
+            if (!m_isInitialized)
+            {
+                m_zoomFactor = 1.0;
+                CenterWorkArea();
+                m_isInitialized = true;
+            }
         }
 
-        // Sfondo dell'area di lavoro
         context.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(Bounds.Size));
 
-        // 1. Area CAD con la trasformazione di Pan & Zoom applicata
-        var transform = Matrix.CreateScale(m_zoomFactor, m_zoomFactor) * Matrix.CreateTranslation(m_panOffset.X, m_panOffset.Y);
+        // Clip geometrico per proteggere i righelli e i menu
+        var clipRect = new Rect(RulerSize, RulerSize, Math.Max(0, Bounds.Width - RulerSize), Math.Max(0, Bounds.Height - RulerSize));
 
-        using (context.PushTransform(transform))
+        using (context.PushClip(clipRect))
         {
-            // Griglia di sfondo dinamica
-            DrawGrid(context);
+            var transform = Matrix.CreateScale(m_zoomFactor, m_zoomFactor) * Matrix.CreateTranslation(m_panOffset.X, m_panOffset.Y);
 
-            // Cornice perimetrale area di lavoro (3000x3000mm)
-            double width = 3000;
-            double height = 3000;
-            double startX = -1500;
-            double startY = -1500;
-
-            var gridBounds = new Rect(startX, startY, width, height);
-            context.DrawRectangle(null, new Pen(Brushes.DarkOliveGreen, 2.0 / m_zoomFactor), gridBounds);
-
-            // Disegna tutte le forme confermate
-            foreach (var rect in _shapes)
+            using (context.PushTransform(transform))
             {
-                var rectGeometry = new Rect(rect.X, rect.Y, rect.Width, rect.Height);
-                bool isSelected = (rect == _selectedShape);
+                // Sforo del 30% per lato
+                double minX = -WorkAreaWidth * 0.30;
+                double maxX = WorkAreaWidth * 1.30;
+                double minY = -WorkAreaHeight * 0.30;
+                double maxY = WorkAreaHeight * 1.30;
 
-                var pen = isSelected
-                    ? new Pen(Brushes.Blue, 2.0 / m_zoomFactor)
-                    : new Pen(Brushes.Red, 1.5 / m_zoomFactor);
+                // Sfondo esterno (area oscurata a sforo +30% per lato)
+                var outerBounds = new Rect(minX, minY, maxX - minX, maxY - minY);
+                context.DrawRectangle(new SolidColorBrush(Color.FromRgb(215, 215, 215)), new Pen(Brushes.Gray, 1.0 / m_zoomFactor), outerBounds);
 
-                IBrush fill = isSelected
-                    ? new SolidColorBrush(Color.FromArgb(40, 0, 120, 255))
-                    : Brushes.Transparent;
+                // Area di lavoro reale centrale
+                var workBounds = new Rect(0, 0, WorkAreaWidth, WorkAreaHeight);
+                context.DrawRectangle(Brushes.White, new Pen(Brushes.DarkOliveGreen, 2.0 / m_zoomFactor), workBounds);
 
-                context.DrawRectangle(fill, pen, rectGeometry);
-            }
+                DrawGrid(context, minX, maxX, minY, maxY);
 
-            // Disegna l'anteprima (rubber-band) in tempo reale
-            if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing && _currentMouseWorldPos.HasValue)
-            {
-                var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
-                var previewRect = RectangleTool.CreateRectangle(_rectangleTool.FirstCorner, snappedCurrentPos);
-                var previewGeom = new Rect(previewRect.X, previewRect.Y, previewRect.Width, previewRect.Height);
-                var dashPen = new Pen(Brushes.Gray, 1.0 / m_zoomFactor);
-                context.DrawRectangle(Brushes.Transparent, dashPen, previewGeom);
+                foreach (var shape in _shapes)
+                {
+                    bool isSelected = (shape == _selectedShape);
+                    var pen = isSelected
+                        ? new Pen(Brushes.Blue, 2.0 / m_zoomFactor)
+                        : new Pen(Brushes.Red, 1.5 / m_zoomFactor);
+
+                    if (shape is RectangleShape rect)
+                    {
+                        var rectGeometry = new Rect(rect.X, rect.Y, rect.Width, rect.Height);
+                        IBrush fill = isSelected
+                            ? new SolidColorBrush(Color.FromArgb(40, 0, 120, 255))
+                            : Brushes.Transparent;
+                        context.DrawRectangle(fill, pen, rectGeometry);
+                    }
+                    else if (shape is LineShape line)
+                    {
+                        context.DrawLine(pen, new Point(line.X, line.Y), new Point(line.X2, line.Y2));
+                    }
+                    else if (shape is CircleShape circle)
+                    {
+                        IBrush fill = isSelected
+                            ? new SolidColorBrush(Color.FromArgb(40, 0, 120, 255))
+                            : Brushes.Transparent;
+                        context.DrawEllipse(fill, pen, new Point(circle.X, circle.Y), circle.Radius, circle.Radius);
+                    }
+                }
+
+                if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing && _currentMouseWorldPos.HasValue)
+                {
+                    var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
+                    var previewRect = RectangleTool.CreateRectangle(_rectangleTool.FirstCorner, snappedCurrentPos);
+                    var previewGeom = new Rect(previewRect.X, previewRect.Y, previewRect.Width, previewRect.Height);
+                    var dashPen = new Pen(Brushes.Gray, 1.0 / m_zoomFactor);
+                    context.DrawRectangle(Brushes.Transparent, dashPen, previewGeom);
+                }
+                else if (_currentTool == ToolMode.Line && _isDrawingShape && _drawingStartPoint.HasValue && _currentMouseWorldPos.HasValue)
+                {
+                    var startPoint = _drawingStartPoint.Value;
+                    var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
+                    var dashPen = new Pen(Brushes.Gray, 1.0 / m_zoomFactor);
+                    context.DrawLine(dashPen, new Point(startPoint.X, startPoint.Y), new Point(snappedCurrentPos.X, snappedCurrentPos.Y));
+                }
+                else if (_currentTool == ToolMode.Circle && _isDrawingShape && _drawingStartPoint.HasValue && _currentMouseWorldPos.HasValue)
+                {
+                    var startPoint = _drawingStartPoint.Value;
+                    var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
+                    double dx = snappedCurrentPos.X - startPoint.X;
+                    double dy = snappedCurrentPos.Y - startPoint.Y;
+                    double radius = Math.Sqrt(dx * dx + dy * dy);
+                    var dashPen = new Pen(Brushes.Gray, 1.0 / m_zoomFactor);
+                    context.DrawEllipse(Brushes.Transparent, dashPen, new Point(startPoint.X, startPoint.Y), radius, radius);
+                }
             }
         }
 
-        // 2. Righelli dinamici fissi sui bordi
         DrawRulers(context, Bounds.Width, Bounds.Height);
     }
 
-    private void DrawGrid(DrawingContext context)
+    private void DrawGrid(DrawingContext context, double minX, double maxX, double minY, double maxY)
     {
-        double step = GridStep;
-        var gridPen = new Pen(Brushes.Gainsboro, 0.5);
-        var axisPen = new Pen(Brushes.DarkGray, 1);
+        double step = GridStep; // 1mm
 
-        double width = 3000;
-        double height = 3000;
-        double startX = -1500;
-        double startY = -1500;
+        // Linee sottili, delicate e vicine al colore dello sfondo
+        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(50, 215, 215, 215)), 0.15);
+        var majorGridPen = new Pen(new SolidColorBrush(Color.FromArgb(90, 195, 195, 195)), 0.25);
+        var outerGridPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 160, 160, 160)), 0.35);
+        var axisPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 100, 130, 100)), 0.6);
 
-        for (double x = startX; x <= startX + width; x += step)
+        for (double x = minX; x <= maxX; x += step)
         {
-            var pen = (x == 0) ? axisPen : gridPen;
-            context.DrawLine(pen, new Point(x, startY), new Point(x, startY + height));
+            bool isMajor = (Math.Abs(x % 10) < 0.001);
+            var pen = (Math.Abs(x) < 0.001) ? axisPen : (x < 0 || x > WorkAreaWidth ? outerGridPen : (isMajor ? majorGridPen : gridPen));
+
+            if (m_zoomFactor > 0.35 || isMajor)
+            {
+                context.DrawLine(pen, new Point(x, minY), new Point(x, maxY));
+            }
         }
 
-        for (double y = startY; y <= startY + height; y += step)
+        for (double y = minY; y <= maxY; y += step)
         {
-            var pen = (y == 0) ? axisPen : gridPen;
-            context.DrawLine(pen, new Point(startX, y), new Point(startX + width, y));
+            bool isMajor = (Math.Abs(y % 10) < 0.001);
+            var pen = (Math.Abs(y) < 0.001) ? axisPen : (y < 0 || y > WorkAreaHeight ? outerGridPen : (isMajor ? majorGridPen : gridPen));
+
+            if (m_zoomFactor > 0.35 || isMajor)
+            {
+                context.DrawLine(pen, new Point(minX, y), new Point(maxX, y));
+            }
         }
     }
 
     private void DrawRulers(DrawingContext context, double width, double height)
     {
-        double rulerSize = 22;
-
         var rulerBg = new SolidColorBrush(Color.FromRgb(245, 245, 245));
         var borderPen = new Pen(Brushes.LightGray, 1);
         var tickPen = new Pen(Brushes.DimGray, 1);
         var textBrush = Brushes.DarkSlateGray;
 
-        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, width, rulerSize));
-        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, rulerSize, height));
-        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, rulerSize, rulerSize));
+        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, width, RulerSize));
+        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, RulerSize, height));
+        context.DrawRectangle(rulerBg, borderPen, new Rect(0, 0, RulerSize, RulerSize));
 
         double targetPixelSpacing = 80.0;
         double rawWorldSpacing = targetPixelSpacing / m_zoomFactor;
         double step = GetNiceStep(rawWorldSpacing);
 
-        double worldLeft = (rulerSize - m_panOffset.X) / m_zoomFactor;
+        double worldLeft = (RulerSize - m_panOffset.X) / m_zoomFactor;
         double worldRight = (width - m_panOffset.X) / m_zoomFactor;
-        double worldTop = (rulerSize - m_panOffset.Y) / m_zoomFactor;
+        double worldTop = (RulerSize - m_panOffset.Y) / m_zoomFactor;
         double worldBottom = (height - m_panOffset.Y) / m_zoomFactor;
 
-        // --- RIGHELLO ORIZZONTALE (X) ---
         double startX = Math.Floor(worldLeft / step) * step;
         for (double x = startX; x <= worldRight; x += step)
         {
             double screenX = x * m_zoomFactor + m_panOffset.X;
-            if (screenX >= rulerSize && screenX <= width)
+            if (screenX >= RulerSize && screenX <= width)
             {
-                context.DrawLine(tickPen, new Point(screenX, rulerSize - 5), new Point(screenX, rulerSize));
+                context.DrawLine(tickPen, new Point(screenX, RulerSize - 5), new Point(screenX, RulerSize));
 
                 string text = x.ToString("0", CultureInfo.InvariantCulture);
                 var formattedText = new FormattedText(
@@ -220,14 +320,13 @@ public class LaserOne : Control
             }
         }
 
-        // --- RIGHELLO VERTICALE (Y) ---
         double startY = Math.Floor(worldTop / step) * step;
         for (double y = startY; y <= worldBottom; y += step)
         {
             double screenY = y * m_zoomFactor + m_panOffset.Y;
-            if (screenY >= rulerSize && screenY <= height)
+            if (screenY >= RulerSize && screenY <= height)
             {
-                context.DrawLine(tickPen, new Point(rulerSize - 5, screenY), new Point(rulerSize, screenY));
+                context.DrawLine(tickPen, new Point(RulerSize - 5, screenY), new Point(RulerSize, screenY));
 
                 string text = y.ToString("0", CultureInfo.InvariantCulture);
                 var formattedText = new FormattedText(
@@ -269,7 +368,6 @@ public class LaserOne : Control
         base.OnPointerPressed(e);
         var props = e.GetCurrentPoint(this).Properties;
 
-        // Pan con tasto centrale o Alt
         if (props.IsMiddleButtonPressed || e.KeyModifiers == KeyModifiers.Alt)
         {
             m_isPanning = true;
@@ -279,20 +377,45 @@ public class LaserOne : Control
             return;
         }
 
-        // 1. Modalità Selezione
         if (props.IsLeftButtonPressed && _currentTool == ToolMode.Selection)
         {
             var worldPos = ScreenToWorld(e.GetPosition(this));
-            RectangleShape? found = null;
+            ShapeModel? found = null;
 
             for (int i = _shapes.Count - 1; i >= 0; i--)
             {
-                var rect = _shapes[i];
-                if (worldPos.X >= rect.X && worldPos.X <= rect.X + rect.Width &&
-                    worldPos.Y >= rect.Y && worldPos.Y <= rect.Y + rect.Height)
+                var shape = _shapes[i];
+                if (shape is RectangleShape rect)
                 {
-                    found = rect;
-                    break;
+                    if (worldPos.X >= rect.X && worldPos.X <= rect.X + rect.Width &&
+                        worldPos.Y >= rect.Y && worldPos.Y <= rect.Y + rect.Height)
+                    {
+                        found = shape;
+                        break;
+                    }
+                }
+                else if (shape is CircleShape circle)
+                {
+                    double dx = worldPos.X - circle.X;
+                    double dy = worldPos.Y - circle.Y;
+                    if (Math.Sqrt(dx * dx + dy * dy) <= circle.Radius)
+                    {
+                        found = shape;
+                        break;
+                    }
+                }
+                else if (shape is LineShape line)
+                {
+                    double minX = Math.Min(line.X, line.X2);
+                    double maxX = Math.Max(line.X, line.X2);
+                    double minY = Math.Min(line.Y, line.Y2);
+                    double maxY = Math.Max(line.Y, line.Y2);
+                    if (worldPos.X >= minX - 3 && worldPos.X <= maxX + 3 &&
+                        worldPos.Y >= minY - 3 && worldPos.Y <= maxY + 3)
+                    {
+                        found = shape;
+                        break;
+                    }
                 }
             }
 
@@ -302,7 +425,6 @@ public class LaserOne : Control
             return;
         }
 
-        // 2. Modalità Disegno Rettangolo
         if (props.IsLeftButtonPressed && _currentTool == ToolMode.Rectangle)
         {
             var rawWorldPos = ScreenToWorld(e.GetPosition(this));
@@ -311,7 +433,7 @@ public class LaserOne : Control
             _rectangleTool.OnMouseDown(snappedWorldPos, rect =>
             {
                 _shapes.Add(rect);
-                SetSelectedShape(rect, true); // Abilita i controlli a disegno completato
+                SetSelectedShape(rect, true);
             });
 
             InvalidateVisual();
@@ -319,7 +441,69 @@ public class LaserOne : Control
             return;
         }
 
-        // Pan con tasto sinistro sullo sfondo
+        if (props.IsLeftButtonPressed && _currentTool == ToolMode.Line)
+        {
+            var rawWorldPos = ScreenToWorld(e.GetPosition(this));
+            var snappedWorldPos = SnapToGrid(rawWorldPos);
+
+            if (!_isDrawingShape || !_drawingStartPoint.HasValue)
+            {
+                _drawingStartPoint = snappedWorldPos;
+                _isDrawingShape = true;
+            }
+            else
+            {
+                var startPoint = _drawingStartPoint.Value;
+                var newLine = new LineShape
+                {
+                    X = startPoint.X,
+                    Y = startPoint.Y,
+                    X2 = snappedWorldPos.X,
+                    Y2 = snappedWorldPos.Y
+                };
+                _shapes.Add(newLine);
+                SetSelectedShape(newLine, true);
+                _isDrawingShape = false;
+            }
+
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        if (props.IsLeftButtonPressed && _currentTool == ToolMode.Circle)
+        {
+            var rawWorldPos = ScreenToWorld(e.GetPosition(this));
+            var snappedWorldPos = SnapToGrid(rawWorldPos);
+
+            if (!_isDrawingShape || !_drawingStartPoint.HasValue)
+            {
+                _drawingStartPoint = snappedWorldPos;
+                _isDrawingShape = true;
+            }
+            else
+            {
+                var startPoint = _drawingStartPoint.Value;
+                double dx = snappedWorldPos.X - startPoint.X;
+                double dy = snappedWorldPos.Y - startPoint.Y;
+                double radius = Math.Max(1, Math.Sqrt(dx * dx + dy * dy));
+
+                var newCircle = new CircleShape
+                {
+                    X = startPoint.X,
+                    Y = startPoint.Y,
+                    Radius = radius
+                };
+                _shapes.Add(newCircle);
+                SetSelectedShape(newCircle, true);
+                _isDrawingShape = false;
+            }
+
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
         if (props.IsLeftButtonPressed)
         {
             m_isPanning = true;
@@ -348,11 +532,13 @@ public class LaserOne : Control
 
         if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing)
         {
-            // Calcola l'anteprima e aggiorna i campi numerici in tempo reale ma mantenendoli disabilitati (grigiati)
             var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
             var previewRect = RectangleTool.CreateRectangle(_rectangleTool.FirstCorner, snappedCurrentPos);
             SelectionChanged?.Invoke(previewRect, false);
-
+            InvalidateVisual();
+        }
+        else if ((_currentTool == ToolMode.Line || _currentTool == ToolMode.Circle) && _isDrawingShape)
+        {
             InvalidateVisual();
         }
     }
@@ -372,19 +558,15 @@ public class LaserOne : Control
     {
         base.OnPointerWheelChanged(e);
 
-        Point mousePos = e.GetPosition(this);
         double zoomFactorDelta = e.Delta.Y > 0 ? 1.15 : 1.0 / 1.15;
         double newZoom = m_zoomFactor * zoomFactorDelta;
 
         if (newZoom < 0.05 || newZoom > 50.0)
             return;
 
-        m_panOffset = new Point(
-            mousePos.X - (mousePos.X - m_panOffset.X) * (newZoom / m_zoomFactor),
-            mousePos.Y - (mousePos.Y - m_panOffset.Y) * (newZoom / m_zoomFactor)
-        );
-
         m_zoomFactor = newZoom;
+        CenterWorkArea();
+
         InvalidateVisual();
         e.Handled = true;
     }
