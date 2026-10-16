@@ -5,7 +5,7 @@
         xmlns:views="using:LaserOne.Views"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="LaserOne.Views.MainWindow"
-        Title="LaserOne v0.5"
+        Title="LaserOne v0.7"
         Icon="/Assets/app.ico"
         Width="1280" Height="800">
 	<DockPanel LastChildFill="True">
@@ -157,6 +157,25 @@
 							</Grid>
 
 							<Button x:Name="ConnectButton" Content="Connetti Sculpfun" HorizontalAlignment="Stretch" Height="30" Click="ConnectButton_Click"/>
+						</StackPanel>
+					</Border>
+
+					<!-- PANNELLO TERMINALE E AVVIO LAVORO G-CODE -->
+					<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8">
+						<StackPanel Spacing="6">
+							<TextBlock Text="Controllo &amp; Terminale G-Code" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+
+							<!-- Pulsante Avvia Lavoro -->
+							<Button Content="🚀 Avvia Lavoro (Genera &amp; Invia)" Click="StartJob_Click" HorizontalAlignment="Stretch" Background="#FF006666" Foreground="White" FontWeight="Bold" Height="32"/>
+
+							<!-- Log di ricezione -->
+							<TextBox x:Name="ConsoleLogBox" Height="100" AcceptsReturn="True" IsReadOnly="True" FontFamily="Consolas" FontSize="10" Background="#FFF8F8F8" Foreground="#FF333333"/>
+
+							<!-- Input comando e pulsante invio -->
+							<Grid ColumnDefinitions="*, Auto" ColumnSpacing="4">
+								<TextBox x:Name="CommandInputBox" Grid.Column="0" Height="28" Watermark="es. $H, G0 X10..." KeyDown="CommandInputBox_KeyDown" FontSize="11"/>
+								<Button Grid.Column="1" Content="Invia" Click="SendCommand_Click" Height="28" FontSize="11"/>
+							</Grid>
 						</StackPanel>
 					</Border>
 

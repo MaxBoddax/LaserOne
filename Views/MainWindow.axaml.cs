@@ -1,10 +1,13 @@
 using System;
 using System.IO.Ports;
 using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using LaserOne.Models;
+using LaserOne.Tools;
 
 namespace LaserOne.Views;
 
@@ -81,6 +84,7 @@ public partial class MainWindow : Window
                 GrblStatusText.Foreground = Brushes.DarkGreen;
                 ConnectButton.Content = "Disconnetti";
                 PortComboBox.IsEnabled = false;
+                AppendToConsole($"Connesso con successo a {selectedPort}\n");
             }
             else
             {
@@ -188,6 +192,7 @@ public partial class MainWindow : Window
         ConnectButton.Content = "Connetti Sculpfun";
         PortComboBox.IsEnabled = true;
         RefreshAvailablePorts();
+        AppendToConsole("Disconnesso dalla porta seriale.\n");
     }
 
     protected override void OnClosed(EventArgs e)
@@ -195,6 +200,89 @@ public partial class MainWindow : Window
         DisconnectGrbl();
         base.OnClosed(e);
     }
+
+    // --- GESTIONE TERMINALE E STREAMING G-CODE ---
+
+    private void SendCommand_Click(object? sender, RoutedEventArgs e)
+    {
+        SendManualCommand();
+    }
+
+    private void CommandInputBox_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            SendManualCommand();
+            e.Handled = true;
+        }
+    }
+
+    private void SendManualCommand()
+    {
+        string? cmd = CommandInputBox.Text?.Trim();
+        if (string.IsNullOrEmpty(cmd)) return;
+
+        SendSerialCommand(cmd);
+        CommandInputBox.Text = string.Empty;
+    }
+
+    public void SendSerialCommand(string command)
+    {
+        try
+        {
+            if (_serialPort != null && _serialPort.IsOpen)
+            {
+                _serialPort.WriteLine(command);
+            }
+            else
+            {
+                AppendToConsole("[Simulazione] ");
+            }
+
+            AppendToConsole($"> {command}\n");
+        }
+        catch (Exception ex)
+        {
+            AppendToConsole($"Errore invio: {ex.Message}\n");
+        }
+    }
+
+    public void AppendToConsole(string text)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (ConsoleLogBox != null)
+            {
+                ConsoleLogBox.Text += text;
+                ConsoleLogBox.CaretIndex = ConsoleLogBox.Text?.Length ?? 0;
+            }
+        });
+    }
+
+    private async void StartJob_Click(object? sender, RoutedEventArgs e)
+    {
+        var shapes = MyLaserCanvas.Shapes;
+        if (shapes.Count == 0)
+        {
+            AppendToConsole("⚠️ Nessuna forma presente sul canvas da lavorare!\n");
+            return;
+        }
+
+        // Genera il G-Code dalle forme usando global:: per evitare conflitti con la classe LaserOne
+        var gcodeLines = global::LaserOne.Tools.GCodeGenerator.Generate(shapes, laserPower: 800, feedRate: 1200);
+
+        AppendToConsole($"--- Inizio Lavoro ({gcodeLines.Count} istruzioni) ---\n");
+
+        foreach (var line in gcodeLines)
+        {
+            SendSerialCommand(line);
+            await Task.Delay(50); // Ritardo simulato per lo streaming
+        }
+
+        AppendToConsole("--- Lavoro Completato ---\n");
+    }
+
+    // --- GESTIONE SELEZIONE E PROPRIETÀ ---
 
     private void OnCanvasSelectionChanged(ShapeModel? selectedShape, bool isEnabled)
     {

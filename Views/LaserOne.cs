@@ -70,6 +70,9 @@ public class LaserOne : Control
 
     private readonly List<ShapeModel> _shapes = new();
 
+    // Espone le forme disegnate per la generazione G-Code
+    public IReadOnlyList<ShapeModel> Shapes => _shapes.AsReadOnly();
+
     public LaserOne()
     {
         Focusable = true;
