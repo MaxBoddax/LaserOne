@@ -66,7 +66,7 @@ Make sure you have the following installed on your PC:
 ### Cloning and Running
 ```bash
 # Clone the repository
-git clone [https://github.com/YourUsername/LaserOne.git](https://github.com/YourUsername/LaserOne.git)
+git clone [https://github.com/MaxBoddax/LaserOne.git](https://github.com/MaxBoddax/LaserOne.git)
 
 # Navigate to the project directory
 cd LaserOne
