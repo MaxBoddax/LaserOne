@@ -1,5 +1,7 @@
 # 🚀 LaserOne
 
+<b>NOT YET COMPLETED ANY HELP TO IMPROVE THIS APP VERY APRECIATED.</b>
+
 <p align="center">
   <b>A modern, lightweight, and open-source CAM and control software for GRBL-based laser and CNC machines.</b>
 </p>
