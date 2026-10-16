@@ -5,7 +5,8 @@
         xmlns:views="using:LaserOne.Views"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="LaserOne.Views.MainWindow"
-        Title="LaserOne v0.4"
+        Title="LaserOne v0.5"
+        Icon="/Assets/app.ico"
         Width="1280" Height="800">
 	<DockPanel LastChildFill="True">
 		<!--MENU SUPERIORE -->
@@ -30,33 +31,33 @@
 		</Menu>
 
 		<!-- 2. BARRA DI STATO IN BASSO -->
-		<Border DockPanel.Dock="Bottom" Height="26" Background="#FF2D2D30" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
+		<Border DockPanel.Dock="Bottom" Height="26" Background="#F2E6E6" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
 			<Grid ColumnDefinitions="*, Auto">
 				<TextBlock Text="Pronto. Seleziona uno strumento o inserisci comando..." VerticalAlignment="Center" FontSize="11" Foreground="#FFDCDCDC"/>
 				<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
-					<TextBlock Text="X: 0.00" FontSize="11" Foreground="#FF9CDCFE"/>
-					<TextBlock Text="Y: 0.00" FontSize="11" Foreground="#FF9CDCFE"/>
-					<TextBlock Text="Pronto" FontSize="11" Foreground="#FF4EC9B0"/>
+					<TextBlock Text="X: 0.00" FontSize="11" Foreground="#FF569CD6"/>
+					<TextBlock Text="Y: 0.00" FontSize="11" Foreground="#FF569CD6"/>
+					<TextBlock Text="Pronto" FontSize="11" Foreground="#FF569CD6"/>
 				</StackPanel>
 			</Grid>
 		</Border>
 
 		<!-- 3. BARRA SNAP / OPZIONI GEOMETRICHE IN BASSO -->
-		<Border DockPanel.Dock="Bottom" Height="32" Background="#FF333338" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
+		<Border DockPanel.Dock="Bottom" Height="32" Background="#F2E6E6" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
 			<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
 				<StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
 					<TextBlock Text="Snap:" FontWeight="Bold" FontSize="11" Foreground="#FF569CD6" VerticalAlignment="Center"/>
-					<CheckBox Content="Endpoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Midpoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Center" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Quadrant" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Intersection" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Perpendicular" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Tangent" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Nearest" IsChecked="False" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox x:Name="GridSnapCheckBox" Content="Grid" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0" IsCheckedChanged="GridSnapCheckBox_IsCheckedChanged"/>
-					<CheckBox Content="SmartPoint" IsChecked="True" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
-					<CheckBox Content="Ortho" IsChecked="False" FontSize="11" Foreground="#FFDCDCDC" Padding="4,0,0,0"/>
+					<CheckBox Content="Endpoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Midpoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Center" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Quadrant" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Intersection" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Perpendicular" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Tangent" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Nearest" IsChecked="False" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox x:Name="GridSnapCheckBox" Content="Grid" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0" IsCheckedChanged="GridSnapCheckBox_IsCheckedChanged"/>
+					<CheckBox Content="SmartPoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
+					<CheckBox Content="Ortho" IsChecked="False" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
 				</StackPanel>
 			</ScrollViewer>
 		</Border>
@@ -78,21 +79,21 @@
 								<!-- Riga 1 -->
 								<Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M6,19H10V5H6V19M14,5V19H18V5H14Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconPause}" Width="10" Height="10"/>
 										<TextBlock Text="Pausa" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
 
 								<Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconCircle}" Width="10" Height="10"/>
 										<TextBlock Text="Frame" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
 
 								<Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconRectangle}" Width="10" Height="10"/>
 										<TextBlock Text="Salva" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
@@ -100,21 +101,21 @@
 								<!-- Riga 2 -->
 								<Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M6,6H18V18H6V6Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconStop}" Width="10" Height="10"/>
 										<TextBlock Text="Stop" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
 
 								<Button Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M3,5H21V19H3V5M5,7V17H19V7H5Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconLine}" Width="10" Height="10"/>
 										<TextBlock Text="Frame" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
 
 								<Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M10,16.5L16,12L10,7.5V16.5Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconPlay}" Width="10" Height="10"/>
 										<TextBlock Text="Esegui" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
@@ -122,21 +123,21 @@
 								<!-- Riga 3 -->
 								<Button Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="10" Height="10" Foreground="DarkGreen"/>
+										<PathIcon Data="{StaticResource IconPlay}" Width="10" Height="10" Foreground="DarkGreen"/>
 										<TextBlock Text="Avvio" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
 
 								<Button Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconHome}" Width="10" Height="10"/>
 										<TextBlock Text="Home" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
 
 								<Button Grid.Row="2" Grid.Column="2" HorizontalAlignment="Stretch" Height="32" Padding="4,0">
 									<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-										<PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10Z" Width="10" Height="10"/>
+										<PathIcon Data="{StaticResource IconPoint}" Width="10" Height="10"/>
 										<TextBlock Text="Origine" FontSize="10" VerticalAlignment="Center"/>
 									</StackPanel>
 								</Button>
@@ -195,7 +196,7 @@
 						<!-- Seleziona -->
 						<Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6" Click="SelectionMenuItem_Click">
 							<StackPanel Orientation="Horizontal" Spacing="8">
-								<PathIcon Data="M13.07,10.14L21,18.07L18.07,21L10.14,13.07L3,20V3L13.07,10.14Z" Width="12" Height="12" Foreground="#FF006666"/>
+								<PathIcon Data="{StaticResource IconSelection}" Width="12" Height="12" Foreground="#FF006666"/>
 								<TextBlock Text="Seleziona" VerticalAlignment="Center" FontSize="11"/>
 							</StackPanel>
 						</Button>
@@ -203,7 +204,7 @@
 						<!-- Punto -->
 						<Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6">
 							<StackPanel Orientation="Horizontal" Spacing="8">
-								<PathIcon Data="M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10Z" Width="12" Height="12" Foreground="#FF006666"/>
+								<PathIcon Data="{StaticResource IconPoint}" Width="12" Height="12" Foreground="#FF006666"/>
 								<TextBlock Text="Punto" VerticalAlignment="Center" FontSize="11"/>
 							</StackPanel>
 						</Button>
@@ -211,7 +212,7 @@
 						<!-- Dividi -->
 						<Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6">
 							<StackPanel Orientation="Horizontal" Spacing="8">
-								<PathIcon Data="M19,3L14.74,7.26C15.53,8.08 16,9.19 16,10.43C16,12.9 14,14.9 11.53,14.9C10.63,14.9 9.8,14.63 9.11,14.16L5.26,18.04L6.68,19.46L10.53,15.59C11.19,16.03 11.97,16.3 12.8,16.3C15.68,16.3 18,13.98 18,11.1C18,9.79 17.5,8.6 16.68,7.74L20.41,4L19,3Z" Width="12" Height="12" Foreground="#FF006666"/>
+								<PathIcon Data="{StaticResource IconDivide}" Width="12" Height="12" Foreground="#FF006666"/>
 								<TextBlock Text="Dividi" VerticalAlignment="Center" FontSize="11"/>
 							</StackPanel>
 						</Button>
@@ -219,7 +220,7 @@
 						<!-- Testo -->
 						<Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6">
 							<StackPanel Orientation="Horizontal" Spacing="8">
-								<PathIcon Data="M9,7V11H11V19H13V11H15V7H9Z" Width="12" Height="12" Foreground="#FF006666"/>
+								<PathIcon Data="{StaticResource IconText}" Width="12" Height="12" Foreground="#FF006666"/>
 								<TextBlock Text="Testo" VerticalAlignment="Center" FontSize="11"/>
 							</StackPanel>
 						</Button>
@@ -239,8 +240,8 @@
 								</MenuFlyout>
 							</Button.Flyout>
 							<Grid ColumnDefinitions="Auto, *, Auto" Width="134">
-								<PathIcon x:Name="ShapeToolIcon" Grid.Column="0" Data="M3,5H21V19H3V5M5,7V17H19V7H5Z" Width="12" Height="12" Foreground="#FF006666" VerticalAlignment="Center" Margin="0,0,8,0"/>
-								<TextBlock x:Name="ShapeToolText" Grid.Column="1" Text="Rettangolo" VerticalAlignment="Center" HorizontalAlignment="Left" FontSize="11"/>
+								<PathIcon x:Name="ShapeToolIcon" Grid.Column="0" Data="{StaticResource IconRectangle}" Width="12" Height="12" Foreground="#FF006666" VerticalAlignment="Center" Margin="0,0,8,0"/>
+								<TextBlock x:Name="ShapeToolText" Grid.Column="1" Text="Forme" VerticalAlignment="Center" HorizontalAlignment="Left" FontSize="11"/>
 								<TextBlock Grid.Column="2" Text="▼" FontSize="8" VerticalAlignment="Bottom" HorizontalAlignment="Right" Foreground="Gray" Margin="4,0,0,0"/>
 							</Grid>
 						</Button>

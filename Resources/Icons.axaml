@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+	<!-- Strumento Seleziona -->
+	<StreamGeometry x:Key="IconSelection">M13.07,10.14L21,18.07L18.07,21L10.14,13.07L3,20V3L13.07,10.14Z</StreamGeometry>
+
+	<!-- Strumento Punto -->
+	<StreamGeometry x:Key="IconPoint">M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10Z</StreamGeometry>
+
+	<!-- Strumento Linea -->
+	<StreamGeometry x:Key="IconLine">M3,5H21V19H3V5M5,7V17H19V7H5Z</StreamGeometry>
+
+	<!-- Strumento Rettangolo -->
+	<StreamGeometry x:Key="IconRectangle">M3,3H21V21H3V3M5,5V19H19V5H5Z</StreamGeometry>
+
+	<!-- Strumento Cerchio -->
+	<StreamGeometry x:Key="IconCircle">M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4Z</StreamGeometry>
+
+	<!-- Strumento Testo -->
+	<StreamGeometry x:Key="IconText">M9,7V11H11V19H13V11H15V7H9Z</StreamGeometry>
+
+	<!-- Strumento Dividi / Taglia -->
+	<StreamGeometry x:Key="IconDivide">M19,3L14.74,7.26C15.53,8.08 16,9.19 16,10.43C16,12.9 14,14.9 11.53,14.9C10.63,14.9 9.8,14.63 9.11,14.16L5.26,18.04L6.68,19.46L10.53,15.59C11.19,16.03 11.97,16.3 12.8,16.3C15.68,16.3 18,13.98 18,11.1C18,9.79 17.5,8.6 16.68,7.74L20.41,4L19,3Z</StreamGeometry>
+
+	<!-- Icone Controllo Macchina -->
+	<StreamGeometry x:Key="IconPlay">M8,5.14V19.14L19,12.14L8,5.14Z</StreamGeometry>
+	<StreamGeometry x:Key="IconPause">M6,19H10V5H6V19M14,5V19H18V5H14Z</StreamGeometry>
+	<StreamGeometry x:Key="IconStop">M6,6H18V18H6V6Z</StreamGeometry>
+	<StreamGeometry x:Key="IconHome">M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z</StreamGeometry>
+
+</ResourceDictionary>

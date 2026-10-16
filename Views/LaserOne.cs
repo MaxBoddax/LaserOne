@@ -20,7 +20,18 @@ public class LaserOne : Control
         Circle
     }
 
+    private enum InteractionMode
+    {
+        None,
+        Move,
+        Rotate,
+        ScaleTL, ScaleTC, ScaleTR,
+        ScaleML, ScaleMR,
+        ScaleBL, ScaleBC, ScaleBR
+    }
+
     private ToolMode _currentTool = ToolMode.Selection;
+    private InteractionMode _currentInteraction = InteractionMode.None;
 
     private double m_zoomFactor = 1.0;
     private Point m_panOffset = new Point(0, 0);
@@ -28,34 +39,41 @@ public class LaserOne : Control
     private bool m_isPanning = false;
     private bool m_isInitialized = false;
 
-    // Dimensioni Area di Lavoro (configurate da CncConfig)
     public double WorkAreaWidth { get; set; } = CncConfig.WorkAreaWidth;
     public double WorkAreaHeight { get; set; } = CncConfig.WorkAreaHeight;
 
     private const double RulerSize = 22.0;
 
-    // Strumenti e stato di disegno
     private readonly RectangleTool _rectangleTool = new();
     private Point2D? _currentMouseWorldPos = null;
 
-    // Stato temporaneo per Linea e Cerchio
     private Point2D? _drawingStartPoint = null;
     private bool _isDrawingShape = false;
 
-    // Gestione Selezione
+    // Selezione Multipla e Box Selection
     private ShapeModel? _selectedShape = null;
+    private readonly List<ShapeModel> _selectedShapes = new();
     public event Action<ShapeModel?, bool>? SelectionChanged;
 
-    // Gestione Snap alla Griglia (Passo griglia millimetrata a 1mm)
+    private bool _isBoxSelecting = false;
+    private Point2D _boxSelectStart;
+    private Point2D _boxSelectCurrent;
+
+    private Point2D _dragStartWorldPos;
+    private Rect _shapeOriginalBbox;
+    private double _origX, _origY, _origWidth, _origHeight, _origRadius, _origX2, _origY2, _origRotation;
+
+    private readonly Dictionary<ShapeModel, double> _shapeRotations = new();
+
     public bool IsGridSnapEnabled { get; set; } = true;
     private const double GridStep = 1.0;
 
-    // Lista delle forme disegnate sul canvas
     private readonly List<ShapeModel> _shapes = new();
 
     public LaserOne()
     {
         Focusable = true;
+        Cursor = new Cursor(StandardCursorType.Arrow);
     }
 
     private void SetSelectedShape(ShapeModel? shape, bool isEnabled)
@@ -69,6 +87,7 @@ public class LaserOne : Control
         _currentTool = ToolMode.Selection;
         _rectangleTool.Reset();
         _isDrawingShape = false;
+        Cursor = new Cursor(StandardCursorType.Arrow);
         InvalidateVisual();
     }
 
@@ -77,7 +96,9 @@ public class LaserOne : Control
         _currentTool = ToolMode.Rectangle;
         _rectangleTool.Reset();
         _isDrawingShape = false;
+        _selectedShapes.Clear();
         SetSelectedShape(null, false);
+        Cursor = new Cursor(StandardCursorType.Cross);
         InvalidateVisual();
     }
 
@@ -86,7 +107,9 @@ public class LaserOne : Control
         _currentTool = ToolMode.Line;
         _rectangleTool.Reset();
         _isDrawingShape = false;
+        _selectedShapes.Clear();
         SetSelectedShape(null, false);
+        Cursor = new Cursor(StandardCursorType.Cross);
         InvalidateVisual();
     }
 
@@ -95,7 +118,9 @@ public class LaserOne : Control
         _currentTool = ToolMode.Circle;
         _rectangleTool.Reset();
         _isDrawingShape = false;
+        _selectedShapes.Clear();
         SetSelectedShape(null, false);
+        Cursor = new Cursor(StandardCursorType.Cross);
         InvalidateVisual();
     }
 
@@ -114,9 +139,96 @@ public class LaserOne : Control
         }
     }
 
+    public void ClearAll()
+    {
+        _shapes.Clear();
+        _shapeRotations.Clear();
+        _selectedShapes.Clear();
+        SetSelectedShape(null, false);
+        _rectangleTool.Reset();
+        _isDrawingShape = false;
+        _drawingStartPoint = null;
+        ActivateSelectionTool();
+        InvalidateVisual();
+    }
+
+    public void CancelAction()
+    {
+        bool wasDrawing = false;
+        if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing)
+        {
+            _rectangleTool.Reset();
+            wasDrawing = true;
+        }
+        if (_isDrawingShape)
+        {
+            _isDrawingShape = false;
+            _drawingStartPoint = null;
+            wasDrawing = true;
+        }
+
+        if (wasDrawing)
+        {
+            ActivateSelectionTool();
+            InvalidateVisual();
+            return;
+        }
+
+        if (_selectedShapes.Count > 0)
+        {
+            _selectedShapes.Clear();
+            SetSelectedShape(null, false);
+            InvalidateVisual();
+        }
+    }
+
+    public void DeleteSelected()
+    {
+        bool deleted = false;
+
+        if (_selectedShapes.Count > 0)
+        {
+            foreach (var shape in _selectedShapes)
+            {
+                _shapes.Remove(shape);
+                _shapeRotations.Remove(shape);
+            }
+            _selectedShapes.Clear();
+            deleted = true;
+        }
+        else if (_selectedShape != null)
+        {
+            _shapes.Remove(_selectedShape);
+            _shapeRotations.Remove(_selectedShape);
+            deleted = true;
+        }
+
+        if (deleted)
+        {
+            SetSelectedShape(null, false);
+            InvalidateVisual();
+        }
+    }
+
+    // --- GESTIONE INPUT DA TASTIERA ---
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Key == Key.Delete || e.Key == Key.Back)
+        {
+            DeleteSelected();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            CancelAction();
+            e.Handled = true;
+        }
+    }
+
     private Point2D SnapToGrid(Point2D worldPoint)
     {
-        // Limiti estesi al 30% per lato
         double minX = -WorkAreaWidth * 0.30;
         double maxX = WorkAreaWidth * 1.30;
         double minY = -WorkAreaHeight * 0.30;
@@ -162,7 +274,6 @@ public class LaserOne : Control
 
         context.DrawRectangle(Brushes.WhiteSmoke, null, new Rect(Bounds.Size));
 
-        // Clip geometrico per proteggere i righelli e i menu
         var clipRect = new Rect(RulerSize, RulerSize, Math.Max(0, Bounds.Width - RulerSize), Math.Max(0, Bounds.Height - RulerSize));
 
         using (context.PushClip(clipRect))
@@ -171,29 +282,39 @@ public class LaserOne : Control
 
             using (context.PushTransform(transform))
             {
-                // Sforo del 30% per lato
                 double minX = -WorkAreaWidth * 0.30;
                 double maxX = WorkAreaWidth * 1.30;
                 double minY = -WorkAreaHeight * 0.30;
                 double maxY = WorkAreaHeight * 1.30;
 
-                // Sfondo esterno (area oscurata a sforo +30% per lato)
                 var outerBounds = new Rect(minX, minY, maxX - minX, maxY - minY);
-                context.DrawRectangle(new SolidColorBrush(Color.FromRgb(215, 215, 215)), new Pen(Brushes.Gray, 1.0 / m_zoomFactor), outerBounds);
+                context.DrawRectangle(new SolidColorBrush(Color.FromRgb(242, 242, 242)), new Pen(Brushes.Olive, 1.5 / m_zoomFactor), outerBounds);
 
-                // Area di lavoro reale centrale
                 var workBounds = new Rect(0, 0, WorkAreaWidth, WorkAreaHeight);
-                context.DrawRectangle(Brushes.White, new Pen(Brushes.DarkOliveGreen, 2.0 / m_zoomFactor), workBounds);
+                context.DrawRectangle(Brushes.White, new Pen(Brushes.Lime, 2.0 / m_zoomFactor), workBounds);
 
                 DrawGrid(context, minX, maxX, minY, maxY);
+            }
 
-                foreach (var shape in _shapes)
+            foreach (var shape in _shapes)
+            {
+                bool isSelected = _selectedShapes.Contains(shape);
+                var pen = isSelected
+                    ? new Pen(Brushes.Blue, 2.0 / m_zoomFactor)
+                    : new Pen(Brushes.Red, 1.5 / m_zoomFactor);
+
+                var bbox = GetShapeWorldBounds(shape);
+                var center = new Point(bbox.X + bbox.Width / 2.0, bbox.Y + bbox.Height / 2.0);
+                double rotDeg = _shapeRotations.TryGetValue(shape, out var r) ? r : 0.0;
+                double rotRad = rotDeg * (Math.PI / 180.0);
+
+                var shapeTransform = Matrix.CreateTranslation(-center.X, -center.Y) *
+                                     Matrix.CreateRotation(rotRad) *
+                                     Matrix.CreateTranslation(center.X, center.Y) *
+                                     transform;
+
+                using (context.PushTransform(shapeTransform))
                 {
-                    bool isSelected = (shape == _selectedShape);
-                    var pen = isSelected
-                        ? new Pen(Brushes.Blue, 2.0 / m_zoomFactor)
-                        : new Pen(Brushes.Red, 1.5 / m_zoomFactor);
-
                     if (shape is RectangleShape rect)
                     {
                         var rectGeometry = new Rect(rect.X, rect.Y, rect.Width, rect.Height);
@@ -214,7 +335,10 @@ public class LaserOne : Control
                         context.DrawEllipse(fill, pen, new Point(circle.X, circle.Y), circle.Radius, circle.Radius);
                     }
                 }
+            }
 
+            using (context.PushTransform(transform))
+            {
                 if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing && _currentMouseWorldPos.HasValue)
                 {
                     var snappedCurrentPos = SnapToGrid(_currentMouseWorldPos.Value);
@@ -240,41 +364,208 @@ public class LaserOne : Control
                     var dashPen = new Pen(Brushes.Gray, 1.0 / m_zoomFactor);
                     context.DrawEllipse(Brushes.Transparent, dashPen, new Point(startPoint.X, startPoint.Y), radius, radius);
                 }
+
+                if (_isBoxSelecting)
+                {
+                    double xMin = Math.Min(_boxSelectStart.X, _boxSelectCurrent.X);
+                    double xMax = Math.Max(_boxSelectStart.X, _boxSelectCurrent.X);
+                    double yMin = Math.Min(_boxSelectStart.Y, _boxSelectCurrent.Y);
+                    double yMax = Math.Max(_boxSelectStart.Y, _boxSelectCurrent.Y);
+                    var boxRect = new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+                    var boxFill = new SolidColorBrush(Color.FromArgb(30, 0, 120, 255));
+                    var boxPen = new Pen(Brushes.Blue, 1.0 / m_zoomFactor);
+                    context.DrawRectangle(boxFill, boxPen, boxRect);
+                }
+            }
+
+            if (_selectedShape != null && _selectedShapes.Count == 1)
+            {
+                DrawRotatedSelectionHandles(context, _selectedShape);
             }
         }
 
         DrawRulers(context, Bounds.Width, Bounds.Height);
     }
 
+    private Rect GetShapeWorldBounds(ShapeModel shape)
+    {
+        if (shape is RectangleShape rect)
+        {
+            return new Rect(rect.X, rect.Y, rect.Width, rect.Height);
+        }
+        else if (shape is CircleShape circle)
+        {
+            return new Rect(circle.X - circle.Radius, circle.Y - circle.Radius, circle.Radius * 2, circle.Radius * 2);
+        }
+        else if (shape is LineShape line)
+        {
+            double minX = Math.Min(line.X, line.X2);
+            double maxX = Math.Max(line.X, line.X2);
+            double minY = Math.Min(line.Y, line.Y2);
+            double maxY = Math.Max(line.Y, line.Y2);
+            return new Rect(minX, minY, Math.Max(1, maxX - minX), Math.Max(1, maxY - minY));
+        }
+        return new Rect(0, 0, 0, 0);
+    }
+
+    private Point WorldToScreen(double wx, double wy)
+    {
+        return new Point(wx * m_zoomFactor + m_panOffset.X, wy * m_zoomFactor + m_panOffset.Y);
+    }
+
+    private Point RotatePoint(double x, double y, Point center, double rotRad)
+    {
+        double cos = Math.Cos(rotRad);
+        double sin = Math.Sin(rotRad);
+        double dx = x - center.X;
+        double dy = y - center.Y;
+        return new Point(
+            center.X + (dx * cos - dy * sin),
+            center.Y + (dx * sin + dy * cos)
+        );
+    }
+
+    private void DrawRotatedSelectionHandles(DrawingContext context, ShapeModel shape)
+    {
+        var bbox = GetShapeWorldBounds(shape);
+        var center = new Point(bbox.X + bbox.Width / 2.0, bbox.Y + bbox.Height / 2.0);
+        double rotDeg = _shapeRotations.TryGetValue(shape, out var r) ? r : 0.0;
+        double rotRad = rotDeg * (Math.PI / 180.0);
+
+        Point wTL = RotatePoint(bbox.X, bbox.Y, center, rotRad);
+        Point wTR = RotatePoint(bbox.X + bbox.Width, bbox.Y, center, rotRad);
+        Point wBR = RotatePoint(bbox.X + bbox.Width, bbox.Y + bbox.Height, center, rotRad);
+        Point wBL = RotatePoint(bbox.X, bbox.Y + bbox.Height, center, rotRad);
+
+        Point sTL = WorldToScreen(wTL.X, wTL.Y);
+        Point sTR = WorldToScreen(wTR.X, wTR.Y);
+        Point sBR = WorldToScreen(wBR.X, wBR.Y);
+        Point sBL = WorldToScreen(wBL.X, wBL.Y);
+
+        var dashPen = new Pen(Brushes.Blue, 1.5);
+        context.DrawLine(dashPen, sTL, sTR);
+        context.DrawLine(dashPen, sTR, sBR);
+        context.DrawLine(dashPen, sBR, sBL);
+        context.DrawLine(dashPen, sBL, sTL);
+
+        Point sTC = new Point((sTL.X + sTR.X) / 2.0, (sTL.Y + sTR.Y) / 2.0);
+        Point sBC = new Point((sBL.X + sBR.X) / 2.0, (sBL.Y + sBR.Y) / 2.0);
+        Point sML = new Point((sTL.X + sBL.X) / 2.0, (sTL.Y + sBL.Y) / 2.0);
+        Point sMR = new Point((sTR.X + sBR.X) / 2.0, (sTR.Y + sBR.Y) / 2.0);
+
+        Point[] screenGrips = { sTL, sTC, sTR, sML, sMR, sBL, sBC, sBR };
+
+        var gripPen = new Pen(Brushes.Blue, 1);
+        var gripBrush = Brushes.White;
+        double gripSize = 6.0;
+        double halfGrip = gripSize / 2.0;
+
+        Vector topDir = new Vector(sTR.X - sTL.X, sTR.Y - sTL.Y);
+        topDir = topDir.Length > 0 ? Vector.Normalize(topDir) : new Vector(0, -1);
+        Vector perpUp = new Vector(-topDir.Y, topDir.X);
+        Point rotHandle = sTC + perpUp * 18.0;
+
+        context.DrawLine(new Pen(Brushes.Blue, 1), sTC, rotHandle);
+        context.DrawEllipse(gripBrush, gripPen, rotHandle, 4, 4);
+
+        foreach (var g in screenGrips)
+        {
+            var gripRect = new Rect(g.X - halfGrip, g.Y - halfGrip, gripSize, gripSize);
+            context.DrawRectangle(gripBrush, gripPen, gripRect);
+        }
+    }
+
+    private InteractionMode HitTestHandles(Point mousePos, ShapeModel shape)
+    {
+        var bbox = GetShapeWorldBounds(shape);
+        var center = new Point(bbox.X + bbox.Width / 2.0, bbox.Y + bbox.Height / 2.0);
+        double rotDeg = _shapeRotations.TryGetValue(shape, out var r) ? r : 0.0;
+        double rotRad = rotDeg * (Math.PI / 180.0);
+
+        Point wTL = RotatePoint(bbox.X, bbox.Y, center, rotRad);
+        Point wTR = RotatePoint(bbox.X + bbox.Width, bbox.Y, center, rotRad);
+        Point wBR = RotatePoint(bbox.X + bbox.Width, bbox.Y + bbox.Height, center, rotRad);
+        Point wBL = RotatePoint(bbox.X, bbox.Y + bbox.Height, center, rotRad);
+
+        Point sTL = WorldToScreen(wTL.X, wTL.Y);
+        Point sTR = WorldToScreen(wTR.X, wTR.Y);
+        Point sBR = WorldToScreen(wBR.X, wBR.Y);
+        Point sBL = WorldToScreen(wBL.X, wBL.Y);
+
+        Point sTC = new Point((sTL.X + sTR.X) / 2.0, (sTL.Y + sTR.Y) / 2.0);
+        Point sBC = new Point((sBL.X + sBR.X) / 2.0, (sBL.Y + sBR.Y) / 2.0);
+        Point sML = new Point((sTL.X + sBL.X) / 2.0, (sTL.Y + sBL.Y) / 2.0);
+        Point sMR = new Point((sTR.X + sBR.X) / 2.0, (sTR.Y + sBR.Y) / 2.0);
+
+        Vector topDir = new Vector(sTR.X - sTL.X, sTR.Y - sTL.Y);
+        topDir = topDir.Length > 0 ? Vector.Normalize(topDir) : new Vector(0, -1);
+        Vector perpUp = new Vector(-topDir.Y, topDir.X);
+        Point rotHandle = sTC + perpUp * 18.0;
+
+        if (Math.Abs(mousePos.X - rotHandle.X) <= 6 && Math.Abs(mousePos.Y - rotHandle.Y) <= 6)
+            return InteractionMode.Rotate;
+
+        if (HitTestPoint(mousePos, sTL)) return InteractionMode.ScaleTL;
+        if (HitTestPoint(mousePos, sTC)) return InteractionMode.ScaleTC;
+        if (HitTestPoint(mousePos, sTR)) return InteractionMode.ScaleTR;
+        if (HitTestPoint(mousePos, sML)) return InteractionMode.ScaleML;
+        if (HitTestPoint(mousePos, sMR)) return InteractionMode.ScaleMR;
+        if (HitTestPoint(mousePos, sBL)) return InteractionMode.ScaleBL;
+        if (HitTestPoint(mousePos, sBC)) return InteractionMode.ScaleBC;
+        if (HitTestPoint(mousePos, sBR)) return InteractionMode.ScaleBR;
+
+        Point2D worldMouse = ScreenToWorld(mousePos);
+        Point invWorldMouse = RotatePoint(worldMouse.X, worldMouse.Y, center, -rotRad);
+        if (bbox.Contains(new Point(invWorldMouse.X, invWorldMouse.Y)))
+            return InteractionMode.Move;
+
+        return InteractionMode.None;
+    }
+
+    private bool HitTestPoint(Point p1, Point p2)
+    {
+        return Math.Abs(p1.X - p2.X) <= 6 && Math.Abs(p1.Y - p2.Y) <= 6;
+    }
+
     private void DrawGrid(DrawingContext context, double minX, double maxX, double minY, double maxY)
     {
-        double step = GridStep; // 1mm
+        double step = GridStep;
 
-        // Linee sottili, delicate e vicine al colore dello sfondo
-        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(50, 215, 215, 215)), 0.15);
-        var majorGridPen = new Pen(new SolidColorBrush(Color.FromArgb(90, 195, 195, 195)), 0.25);
-        var outerGridPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 160, 160, 160)), 0.35);
+        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(45, 215, 215, 215)), 0.15);
+        var majorGridPen = new Pen(new SolidColorBrush(Color.FromArgb(85, 195, 195, 195)), 0.25);
+        var outerGridPen = new Pen(new SolidColorBrush(Color.FromArgb(30, 180, 180, 180)), 0.15);
         var axisPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 100, 130, 100)), 0.6);
 
-        for (double x = minX; x <= maxX; x += step)
+        for (double x = 0; x <= WorkAreaWidth; x += step)
         {
             bool isMajor = (Math.Abs(x % 10) < 0.001);
-            var pen = (Math.Abs(x) < 0.001) ? axisPen : (x < 0 || x > WorkAreaWidth ? outerGridPen : (isMajor ? majorGridPen : gridPen));
+            bool isAxis = (Math.Abs(x) < 0.001);
+            var pen = isAxis ? axisPen : (isMajor ? majorGridPen : gridPen);
+            context.DrawLine(pen, new Point(x, 0), new Point(x, WorkAreaHeight));
+        }
 
-            if (m_zoomFactor > 0.35 || isMajor)
+        for (double y = 0; y <= WorkAreaHeight; y += step)
+        {
+            bool isMajor = (Math.Abs(y % 10) < 0.001);
+            bool isAxis = (Math.Abs(y) < 0.001);
+            var pen = isAxis ? axisPen : (isMajor ? majorGridPen : gridPen);
+            context.DrawLine(pen, new Point(0, y), new Point(WorkAreaWidth, y));
+        }
+
+        double extraStep = 10.0;
+        for (double x = minX; x <= maxX; x += extraStep)
+        {
+            if (x < 0 || x > WorkAreaWidth)
             {
-                context.DrawLine(pen, new Point(x, minY), new Point(x, maxY));
+                context.DrawLine(outerGridPen, new Point(x, minY), new Point(x, maxY));
             }
         }
 
-        for (double y = minY; y <= maxY; y += step)
+        for (double y = minY; y <= maxY; y += extraStep)
         {
-            bool isMajor = (Math.Abs(y % 10) < 0.001);
-            var pen = (Math.Abs(y) < 0.001) ? axisPen : (y < 0 || y > WorkAreaHeight ? outerGridPen : (isMajor ? majorGridPen : gridPen));
-
-            if (m_zoomFactor > 0.35 || isMajor)
+            if (y < 0 || y > WorkAreaHeight)
             {
-                context.DrawLine(pen, new Point(minX, y), new Point(maxX, y));
+                context.DrawLine(outerGridPen, new Point(minX, y), new Point(maxX, y));
             }
         }
     }
@@ -366,12 +657,15 @@ public class LaserOne : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        Focus(); // <-- Forza il canvas a ricevere il focus per i tasti da tastiera
+
         var props = e.GetCurrentPoint(this).Properties;
+        Point mousePos = e.GetPosition(this);
 
         if (props.IsMiddleButtonPressed || e.KeyModifiers == KeyModifiers.Alt)
         {
             m_isPanning = true;
-            m_lastMousePos = e.GetPosition(this);
+            m_lastMousePos = mousePos;
             e.Pointer.Capture(this);
             e.Handled = true;
             return;
@@ -379,28 +673,55 @@ public class LaserOne : Control
 
         if (props.IsLeftButtonPressed && _currentTool == ToolMode.Selection)
         {
-            var worldPos = ScreenToWorld(e.GetPosition(this));
-            ShapeModel? found = null;
+            if (_selectedShape != null && _selectedShapes.Count == 1)
+            {
+                var interaction = HitTestHandles(mousePos, _selectedShape);
+                if (interaction != InteractionMode.None)
+                {
+                    _currentInteraction = interaction;
+                    _dragStartWorldPos = ScreenToWorld(mousePos);
+                    _shapeOriginalBbox = GetShapeWorldBounds(_selectedShape);
+                    _origX = _shapeOriginalBbox.X;
+                    _origY = _shapeOriginalBbox.Y;
+                    _origWidth = _shapeOriginalBbox.Width;
+                    _origHeight = _shapeOriginalBbox.Height;
+                    _origRotation = _shapeRotations.TryGetValue(_selectedShape, out var r) ? r : 0.0;
+                    if (_selectedShape is CircleShape circ) _origRadius = circ.Radius;
+                    if (_selectedShape is LineShape line) { _origX2 = line.X2; _origY2 = line.Y2; }
+
+                    e.Pointer.Capture(this);
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            var worldPos = ScreenToWorld(mousePos);
+            ShapeModel? clickedShape = null;
 
             for (int i = _shapes.Count - 1; i >= 0; i--)
             {
                 var shape = _shapes[i];
+                var bbox = GetShapeWorldBounds(shape);
+                var center = new Point(bbox.X + bbox.Width / 2.0, bbox.Y + bbox.Height / 2.0);
+                double rotDeg = _shapeRotations.TryGetValue(shape, out var r) ? r : 0.0;
+                Point invWorldMouse = RotatePoint(worldPos.X, worldPos.Y, center, -rotDeg * (Math.PI / 180.0));
+
                 if (shape is RectangleShape rect)
                 {
-                    if (worldPos.X >= rect.X && worldPos.X <= rect.X + rect.Width &&
-                        worldPos.Y >= rect.Y && worldPos.Y <= rect.Y + rect.Height)
+                    if (invWorldMouse.X >= rect.X && invWorldMouse.X <= rect.X + rect.Width &&
+                        invWorldMouse.Y >= rect.Y && invWorldMouse.Y <= rect.Y + rect.Height)
                     {
-                        found = shape;
+                        clickedShape = shape;
                         break;
                     }
                 }
                 else if (shape is CircleShape circle)
                 {
-                    double dx = worldPos.X - circle.X;
-                    double dy = worldPos.Y - circle.Y;
+                    double dx = invWorldMouse.X - circle.X;
+                    double dy = invWorldMouse.Y - circle.Y;
                     if (Math.Sqrt(dx * dx + dy * dy) <= circle.Radius)
                     {
-                        found = shape;
+                        clickedShape = shape;
                         break;
                     }
                 }
@@ -410,16 +731,59 @@ public class LaserOne : Control
                     double maxX = Math.Max(line.X, line.X2);
                     double minY = Math.Min(line.Y, line.Y2);
                     double maxY = Math.Max(line.Y, line.Y2);
-                    if (worldPos.X >= minX - 3 && worldPos.X <= maxX + 3 &&
-                        worldPos.Y >= minY - 3 && worldPos.Y <= maxY + 3)
+                    if (invWorldMouse.X >= minX - 3 && invWorldMouse.X <= maxX + 3 &&
+                        invWorldMouse.Y >= minY - 3 && invWorldMouse.Y <= maxY + 3)
                     {
-                        found = shape;
+                        clickedShape = shape;
                         break;
                     }
                 }
             }
 
-            SetSelectedShape(found, found != null);
+            if (clickedShape != null)
+            {
+                if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+                {
+                    if (!_selectedShapes.Contains(clickedShape))
+                    {
+                        _selectedShapes.Clear();
+                        _selectedShapes.Add(clickedShape);
+                    }
+                }
+                else
+                {
+                    if (_selectedShapes.Contains(clickedShape))
+                        _selectedShapes.Remove(clickedShape);
+                    else
+                        _selectedShapes.Add(clickedShape);
+                }
+
+                _selectedShape = _selectedShapes.Count > 0 ? _selectedShapes[^1] : null;
+                SetSelectedShape(_selectedShape, _selectedShape != null);
+
+                _currentInteraction = InteractionMode.Move;
+                _dragStartWorldPos = worldPos;
+                _shapeOriginalBbox = GetShapeWorldBounds(clickedShape);
+                _origX = clickedShape.X;
+                _origY = clickedShape.Y;
+                _origRotation = _shapeRotations.TryGetValue(clickedShape, out var rot) ? rot : 0.0;
+                if (clickedShape is LineShape line) { _origX2 = line.X2; _origY2 = line.Y2; }
+                e.Pointer.Capture(this);
+            }
+            else
+            {
+                if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
+                {
+                    _selectedShapes.Clear();
+                    SetSelectedShape(null, false);
+                }
+
+                _isBoxSelecting = true;
+                _boxSelectStart = worldPos;
+                _boxSelectCurrent = worldPos;
+                e.Pointer.Capture(this);
+            }
+
             InvalidateVisual();
             e.Handled = true;
             return;
@@ -427,13 +791,16 @@ public class LaserOne : Control
 
         if (props.IsLeftButtonPressed && _currentTool == ToolMode.Rectangle)
         {
-            var rawWorldPos = ScreenToWorld(e.GetPosition(this));
+            var rawWorldPos = ScreenToWorld(mousePos);
             var snappedWorldPos = SnapToGrid(rawWorldPos);
 
             _rectangleTool.OnMouseDown(snappedWorldPos, rect =>
             {
                 _shapes.Add(rect);
+                _selectedShapes.Clear();
+                _selectedShapes.Add(rect);
                 SetSelectedShape(rect, true);
+                ActivateSelectionTool();
             });
 
             InvalidateVisual();
@@ -443,7 +810,7 @@ public class LaserOne : Control
 
         if (props.IsLeftButtonPressed && _currentTool == ToolMode.Line)
         {
-            var rawWorldPos = ScreenToWorld(e.GetPosition(this));
+            var rawWorldPos = ScreenToWorld(mousePos);
             var snappedWorldPos = SnapToGrid(rawWorldPos);
 
             if (!_isDrawingShape || !_drawingStartPoint.HasValue)
@@ -462,6 +829,8 @@ public class LaserOne : Control
                     Y2 = snappedWorldPos.Y
                 };
                 _shapes.Add(newLine);
+                _selectedShapes.Clear();
+                _selectedShapes.Add(newLine);
                 SetSelectedShape(newLine, true);
                 _isDrawingShape = false;
             }
@@ -473,7 +842,7 @@ public class LaserOne : Control
 
         if (props.IsLeftButtonPressed && _currentTool == ToolMode.Circle)
         {
-            var rawWorldPos = ScreenToWorld(e.GetPosition(this));
+            var rawWorldPos = ScreenToWorld(mousePos);
             var snappedWorldPos = SnapToGrid(rawWorldPos);
 
             if (!_isDrawingShape || !_drawingStartPoint.HasValue)
@@ -495,8 +864,11 @@ public class LaserOne : Control
                     Radius = radius
                 };
                 _shapes.Add(newCircle);
+                _selectedShapes.Clear();
+                _selectedShapes.Add(newCircle);
                 SetSelectedShape(newCircle, true);
                 _isDrawingShape = false;
+                ActivateSelectionTool();
             }
 
             InvalidateVisual();
@@ -507,7 +879,7 @@ public class LaserOne : Control
         if (props.IsLeftButtonPressed)
         {
             m_isPanning = true;
-            m_lastMousePos = e.GetPosition(this);
+            m_lastMousePos = mousePos;
             e.Pointer.Capture(this);
             e.Handled = true;
         }
@@ -516,10 +888,10 @@ public class LaserOne : Control
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        Point currentPos = e.GetPosition(this);
 
         if (m_isPanning)
         {
-            Point currentPos = e.GetPosition(this);
             Vector delta = currentPos - m_lastMousePos;
             m_panOffset += delta;
             m_lastMousePos = currentPos;
@@ -528,7 +900,105 @@ public class LaserOne : Control
             return;
         }
 
-        _currentMouseWorldPos = ScreenToWorld(e.GetPosition(this));
+        if (_isBoxSelecting)
+        {
+            _boxSelectCurrent = ScreenToWorld(currentPos);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        if (_currentInteraction != InteractionMode.None && _selectedShape != null)
+        {
+            var currentWorldPos = ScreenToWorld(currentPos);
+
+            double deltaX = currentWorldPos.X - _dragStartWorldPos.X;
+            double deltaY = currentWorldPos.Y - _dragStartWorldPos.Y;
+
+            if (_currentInteraction == InteractionMode.Move)
+            {
+                _selectedShape.X = _origX + deltaX;
+                _selectedShape.Y = _origY + deltaY;
+                if (_selectedShape is LineShape line)
+                {
+                    line.X2 = _origX2 + deltaX;
+                    line.Y2 = _origY2 + deltaY;
+                }
+            }
+            else if (_currentInteraction == InteractionMode.Rotate && _selectedShapes.Count == 1)
+            {
+                var bbox = _shapeOriginalBbox;
+                var center = new Point(bbox.X + bbox.Width / 2.0, bbox.Y + bbox.Height / 2.0);
+                double initialAngle = Math.Atan2(_dragStartWorldPos.Y - center.Y, _dragStartWorldPos.X - center.X);
+                double currentAngle = Math.Atan2(currentWorldPos.Y - center.Y, currentWorldPos.X - center.X);
+                double deltaAngle = currentAngle - initialAngle;
+                double newRotation = _origRotation + deltaAngle * (180.0 / Math.PI);
+                _shapeRotations[_selectedShape] = newRotation;
+            }
+            else if (_selectedShape is RectangleShape rect && _selectedShapes.Count == 1)
+            {
+                double x = _origX;
+                double y = _origY;
+                double w = _origWidth;
+                double h = _origHeight;
+
+                switch (_currentInteraction)
+                {
+                    case InteractionMode.ScaleBR:
+                        w = Math.Max(1, _origWidth + deltaX);
+                        h = Math.Max(1, _origHeight + deltaY);
+                        break;
+                    case InteractionMode.ScaleBL:
+                        double newX = Math.Min(_origX + _origWidth - 1, _origX + deltaX);
+                        w = Math.Max(1, (_origX + _origWidth) - newX);
+                        x = newX;
+                        h = Math.Max(1, _origHeight + deltaY);
+                        break;
+                    case InteractionMode.ScaleTR:
+                        double newY = Math.Min(_origY + _origHeight - 1, _origY + deltaY);
+                        h = Math.Max(1, (_origY + _origHeight) - newY);
+                        y = newY;
+                        w = Math.Max(1, _origWidth + deltaX);
+                        break;
+                    case InteractionMode.ScaleTL:
+                        double nx = Math.Min(_origX + _origWidth - 1, _origX + deltaX);
+                        double ny = Math.Min(_origY + _origHeight - 1, _origY + deltaY);
+                        w = Math.Max(1, (_origX + _origWidth) - nx);
+                        h = Math.Max(1, (_origY + _origHeight) - ny);
+                        x = nx;
+                        y = ny;
+                        break;
+                    case InteractionMode.ScaleMR:
+                        w = Math.Max(1, _origWidth + deltaX);
+                        break;
+                    case InteractionMode.ScaleML:
+                        double nx2 = Math.Min(_origX + _origWidth - 1, _origX + deltaX);
+                        w = Math.Max(1, (_origX + _origWidth) - nx2);
+                        x = nx2;
+                        break;
+                    case InteractionMode.ScaleBC:
+                        h = Math.Max(1, _origHeight + deltaY);
+                        break;
+                    case InteractionMode.ScaleTC:
+                        double ny2 = Math.Min(_origY + _origHeight - 1, _origY + deltaY);
+                        h = Math.Max(1, (_origY + _origHeight) - ny2);
+                        y = ny2;
+                        break;
+                }
+
+                rect.X = x;
+                rect.Y = y;
+                rect.Width = w;
+                rect.Height = h;
+            }
+
+            SetSelectedShape(_selectedShape, true);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        _currentMouseWorldPos = ScreenToWorld(currentPos);
 
         if (_currentTool == ToolMode.Rectangle && _rectangleTool.IsDrawing)
         {
@@ -546,6 +1016,52 @@ public class LaserOne : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+
+        if (_isBoxSelecting)
+        {
+            _isBoxSelecting = false;
+
+            double xMin = Math.Min(_boxSelectStart.X, _boxSelectCurrent.X);
+            double xMax = Math.Max(_boxSelectStart.X, _boxSelectCurrent.X);
+            double yMin = Math.Min(_boxSelectStart.Y, _boxSelectCurrent.Y);
+            double yMax = Math.Max(_boxSelectStart.Y, _boxSelectCurrent.Y);
+            var selectionBox = new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
+
+            if (selectionBox.Width < 2 && selectionBox.Height < 2)
+            {
+                _selectedShapes.Clear();
+                SetSelectedShape(null, false);
+            }
+            else
+            {
+                foreach (var shape in _shapes)
+                {
+                    var bbox = GetShapeWorldBounds(shape);
+                    if (selectionBox.Intersects(bbox))
+                    {
+                        if (!_selectedShapes.Contains(shape))
+                            _selectedShapes.Add(shape);
+                    }
+                }
+
+                _selectedShape = _selectedShapes.Count > 0 ? _selectedShapes[^1] : null;
+                SetSelectedShape(_selectedShape, _selectedShape != null);
+            }
+
+            e.Pointer.Capture(null);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        if (_currentInteraction != InteractionMode.None)
+        {
+            _currentInteraction = InteractionMode.None;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
+
         if (m_isPanning)
         {
             m_isPanning = false;
@@ -558,29 +1074,22 @@ public class LaserOne : Control
     {
         base.OnPointerWheelChanged(e);
 
+        Point mousePos = e.GetPosition(this);
+
         double zoomFactorDelta = e.Delta.Y > 0 ? 1.15 : 1.0 / 1.15;
         double newZoom = m_zoomFactor * zoomFactorDelta;
 
         if (newZoom < 0.05 || newZoom > 50.0)
             return;
 
+        m_panOffset = new Point(
+            mousePos.X - (mousePos.X - m_panOffset.X) * (newZoom / m_zoomFactor),
+            mousePos.Y - (mousePos.Y - m_panOffset.Y) * (newZoom / m_zoomFactor)
+        );
+
         m_zoomFactor = newZoom;
-        CenterWorkArea();
 
         InvalidateVisual();
         e.Handled = true;
-    }
-
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        base.OnKeyDown(e);
-
-        if ((e.Key == Key.Delete || e.Key == Key.Back) && _selectedShape != null)
-        {
-            _shapes.Remove(_selectedShape);
-            SetSelectedShape(null, false);
-            InvalidateVisual();
-            e.Handled = true;
-        }
     }
 }
