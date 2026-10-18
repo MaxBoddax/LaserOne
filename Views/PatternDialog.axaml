@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="380"
+        x:Class="LaserOne.Views.PatternDialog"
+        Title="Pattern Circolare"
+        Width="380" Height="380"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+	<StackPanel Margin="16" Spacing="12">
+		<TextBlock Text="Configurazione Pattern Circolare" FontWeight="Bold" FontSize="14" Foreground="#FF006666"/>
+
+		<!-- Parametri Copie e Angolo -->
+		<Grid ColumnDefinitions="130, *" RowDefinitions="Auto, Auto" RowSpacing="8">
+			<TextBlock Grid.Row="0" Grid.Column="0" Text="Numero Copie:" VerticalAlignment="Center" FontSize="12"/>
+			<NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="NumCopies" Minimum="2" Maximum="100" Increment="1" Value="6" ValueChanged="Parameter_Changed"/>
+
+			<TextBlock Grid.Row="1" Grid.Column="0" Text="Angolo Totale (°):" VerticalAlignment="Center" FontSize="12"/>
+			<NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="NumTotalAngle" Minimum="1" Maximum="360" Increment="15" Value="360" ValueChanged="Parameter_Changed"/>
+		</Grid>
+
+		<!-- Selezione Centro di Rotazione -->
+		<Border BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8" Background="#FFF9F9F9">
+			<StackPanel Spacing="6">
+				<TextBlock Text="Centro di Rotazione:" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
+
+				<RadioButton x:Name="RbSelfCenter" Content="Centro dell'oggetto selezionato" IsChecked="True" IsCheckedChanged="CenterMode_Changed" FontSize="11"/>
+
+				<RadioButton x:Name="RbManualCenter" Content="Coordinate manuali" IsCheckedChanged="CenterMode_Changed" FontSize="11"/>
+				<Grid ColumnDefinitions="40, *, 40, *" RowDefinitions="Auto" Margin="20,2,0,4" x:Name="ManualCoordsPanel" IsVisible="False">
+					<TextBlock Grid.Column="0" Text="X:" VerticalAlignment="Center" FontSize="11"/>
+					<NumericUpDown Grid.Column="1" x:Name="NumCenterX" Minimum="-3000" Maximum="3000" Increment="1" Value="0" ValueChanged="Parameter_Changed" Margin="0,0,8,0"/>
+					<TextBlock Grid.Column="2" Text="Y:" VerticalAlignment="Center" FontSize="11"/>
+					<NumericUpDown Grid.Column="3" x:Name="NumCenterY" Minimum="-3000" Maximum="3000" Increment="1" Value="0" ValueChanged="Parameter_Changed"/>
+				</Grid>
+
+				<RadioButton x:Name="RbOtherShapeCenter" Content="Centro di un'altra forma sul canvas" IsCheckedChanged="CenterMode_Changed" FontSize="11"/>
+				<ComboBox x:Name="CbOtherShapes" Margin="20,2,0,0" HorizontalAlignment="Stretch" Height="28" IsVisible="False" SelectionChanged="CbOtherShapes_SelectionChanged"/>
+			</StackPanel>
+		</Border>
+
+		<!-- Pulsanti Conferma / Annulla -->
+		<StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,4,0,0">
+			<Button Content="Annulla" Width="80" Click="CancelButton_Click"/>
+			<Button Content="Conferma" Width="90" Background="#FF006666" Foreground="White" FontWeight="Bold" Click="OkButton_Click"/>
+		</StackPanel>
+	</StackPanel>
+</Window>

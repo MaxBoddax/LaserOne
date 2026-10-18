@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="280"
+        x:Class="LaserOne.Views.RectangularPatternDialog"
+        Title="Pattern Rettangolare"
+        Width="350" Height="280"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+	<StackPanel Margin="16" Spacing="12">
+		<TextBlock Text="Configurazione Pattern Rettangolare" FontWeight="Bold" FontSize="14" Foreground="#FF006666"/>
+
+		<Grid ColumnDefinitions="130, *" RowDefinitions="Auto, Auto, Auto, Auto" RowSpacing="8">
+			<TextBlock Grid.Row="0" Grid.Column="0" Text="Colonne:" VerticalAlignment="Center" FontSize="12"/>
+			<NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="NumCols" Minimum="1" Maximum="100" Increment="1" Value="3"/>
+
+			<TextBlock Grid.Row="1" Grid.Column="0" Text="Righe:" VerticalAlignment="Center" FontSize="12"/>
+			<NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="NumRows" Minimum="1" Maximum="100" Increment="1" Value="3"/>
+
+			<TextBlock Grid.Row="2" Grid.Column="0" Text="Passo X (mm):" VerticalAlignment="Center" FontSize="12"/>
+			<NumericUpDown Grid.Row="2" Grid.Column="1" x:Name="NumSpacingX" Minimum="-3000" Maximum="3000" Increment="10" Value="50"/>
+
+			<TextBlock Grid.Row="3" Grid.Column="0" Text="Passo Y (mm):" VerticalAlignment="Center" FontSize="12"/>
+			<NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="NumSpacingY" Minimum="-3000" Maximum="3000" Increment="10" Value="50"/>
+		</Grid>
+
+		<StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,12,0,0">
+			<Button Content="Annulla" Width="80" Click="CancelButton_Click"/>
+			<Button Content="Conferma" Width="90" Background="#FF006666" Foreground="White" FontWeight="Bold" Click="OkButton_Click"/>
+		</StackPanel>
+	</StackPanel>
+</Window>

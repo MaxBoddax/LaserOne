@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private bool _isUpdatingUI = false;
     private SerialPort? _serialPort = null;
     private bool _isConnected = false;
+    private ShapeModel? _selectedShape = null;
 
     public MainWindow()
     {
@@ -209,6 +210,193 @@ public partial class MainWindow : Window
         Close();
     }
 
+    // --- GESTIONE PATTERN CIRCOLARE (v0.9) ---
+
+    private async void CircularPatternMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedShape == null)
+        {
+            AppendToConsole("⚠️ Seleziona prima un oggetto sul canvas per applicare il pattern circolare!\n");
+            return;
+        }
+
+        // Passa la forma selezionata e l'intera lista delle forme del canvas al dialogo avanzato
+        var dialog = new PatternDialog(_selectedShape, MyLaserCanvas.Shapes);
+        var result = await dialog.ShowDialog<bool>(this);
+        if (result)
+        {
+            int copies = dialog.Copies;
+            double angle = dialog.TotalAngle;
+            double cx = dialog.CenterX;
+            double cy = dialog.CenterY;
+
+            // Genera le copie ruotate con orientamento radiale professionale
+            double angleStep = angle / copies;
+            int generatedCount = 0;
+
+            for (int i = 1; i < copies; i++)
+            {
+                double currentAngle = i * angleStep;
+                GenerateAndAddRotatedShapeToCanvas(_selectedShape, currentAngle, cx, cy);
+                generatedCount++;
+            }
+
+            MyLaserCanvas.InvalidateVisual();
+            AppendToConsole($"⚙️ Pattern Circolare completato: generate {generatedCount} copie radiali attorno a ({cx:F1}, {cy:F1}).\n");
+        }
+    }
+
+    private void GenerateAndAddRotatedShapeToCanvas(ShapeModel original, double angleDeg, double cx, double cy)
+    {
+        double rad = angleDeg * Math.PI / 180.0;
+        double cos = Math.Cos(rad);
+        double sin = Math.Sin(rad);
+
+        if (original is RectangleShape rect)
+        {
+            // Centro originale del rettangolo
+            double origRectCx = rect.X + rect.Width / 2.0;
+            double origRectCy = rect.Y + rect.Height / 2.0;
+
+            // Ruota il centro del rettangolo attorno al centro del pattern (cx, cy)
+            double distCx = origRectCx - cx;
+            double distCy = origRectCy - cy;
+            double newCx = cx + distCx * cos - distCy * sin;
+            double newCy = cy + distCx * sin + distCy * cos;
+
+            // Semidimensioni
+            double hw = rect.Width / 2.0;
+            double hh = rect.Height / 2.0;
+
+            // Offset locali dei 4 angoli
+            double[] dxs = { -hw, hw, hw, -hw };
+            double[] dys = { -hh, -hh, hh, hh };
+
+            double[] wx = new double[4];
+            double[] wy = new double[4];
+
+            // Ruota i 4 angoli attorno al nuovo centro del rettangolo per ottenere l'orientamento radiale
+            for (int j = 0; j < 4; j++)
+            {
+                double rotDx = dxs[j] * cos - dys[j] * sin;
+                double rotDy = dxs[j] * sin + dys[j] * cos;
+                wx[j] = newCx + rotDx;
+                wy[j] = newCy + rotDy;
+            }
+
+            // Aggiunge le 4 linee perimetrali del rettangolo ruotato radialmente
+            MyLaserCanvas.AddShape(new LineShape { X = wx[0], Y = wy[0], X2 = wx[1], Y2 = wy[1] }); // Top
+            MyLaserCanvas.AddShape(new LineShape { X = wx[1], Y = wy[1], X2 = wx[2], Y2 = wy[2] }); // Right
+            MyLaserCanvas.AddShape(new LineShape { X = wx[2], Y = wy[2], X2 = wx[3], Y2 = wy[3] }); // Bottom
+            MyLaserCanvas.AddShape(new LineShape { X = wx[3], Y = wy[3], X2 = wx[0], Y2 = wy[0] }); // Left
+        }
+        else if (original is CircleShape circle)
+        {
+            double newX = cx + (circle.X - cx) * cos - (circle.Y - cy) * sin;
+            double newY = cy + (circle.X - cx) * sin + (circle.Y - cy) * cos;
+
+            MyLaserCanvas.AddShape(new CircleShape
+            {
+                X = newX,
+                Y = newY,
+                Radius = circle.Radius
+            });
+        }
+        else if (original is LineShape line)
+        {
+            double newX1 = cx + (line.X - cx) * cos - (line.Y - cy) * sin;
+            double newY1 = cy + (line.X - cx) * sin + (line.Y - cy) * cos;
+
+            double newX2 = cx + (line.X2 - cx) * cos - (line.Y2 - cy) * sin;
+            double newY2 = cy + (line.X2 - cx) * sin + (line.Y2 - cy) * cos;
+
+            MyLaserCanvas.AddShape(new LineShape
+            {
+                X = newX1,
+                Y = newY1,
+                X2 = newX2,
+                Y2 = newY2
+            });
+        }
+    }
+
+    // --- GESTIONE PATTERN RETTANGOLARE (v0.9) ---
+
+    private async void RectangularPatternMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_selectedShape == null)
+        {
+            AppendToConsole("⚠️ Seleziona prima un oggetto sul canvas per applicare il pattern rettangolare!\n");
+            return;
+        }
+
+        var dialog = new RectangularPatternDialog();
+        var result = await dialog.ShowDialog<bool>(this);
+        if (result)
+        {
+            int cols = dialog.Columns;
+            int rows = dialog.Rows;
+            double spacingX = dialog.SpacingX;
+            double spacingY = dialog.SpacingY;
+
+            int generatedCount = 0;
+
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    // Salta la posizione iniziale (0,0) che coincide con l'oggetto originale
+                    if (c == 0 && r == 0) continue;
+
+                    double offsetX = c * spacingX;
+                    double offsetY = r * spacingY;
+
+                    ShapeModel clone = CloneAndTranslateShape(_selectedShape, offsetX, offsetY);
+                    MyLaserCanvas.AddShape(clone);
+                    generatedCount++;
+                }
+            }
+
+            MyLaserCanvas.InvalidateVisual();
+            AppendToConsole($"⚙️ Pattern Rettangolare completato: generate {generatedCount} copie ({cols}x{rows}) con passo X:{spacingX}mm, Y:{spacingY}mm.\n");
+        }
+    }
+
+    private ShapeModel CloneAndTranslateShape(ShapeModel original, double dx, double dy)
+    {
+        if (original is RectangleShape rect)
+        {
+            return new RectangleShape
+            {
+                X = rect.X + dx,
+                Y = rect.Y + dy,
+                Width = rect.Width,
+                Height = rect.Height
+            };
+        }
+        else if (original is CircleShape circle)
+        {
+            return new CircleShape
+            {
+                X = circle.X + dx,
+                Y = circle.Y + dy,
+                Radius = circle.Radius
+            };
+        }
+        else if (original is LineShape line)
+        {
+            return new LineShape
+            {
+                X = line.X + dx,
+                Y = line.Y + dy,
+                X2 = line.X2 + dx,
+                Y2 = line.Y2 + dy
+            };
+        }
+
+        return original;
+    }
+
     // --- GESTIONE TERMINALE E STREAMING G-CODE ---
 
     private void SendCommand_Click(object? sender, RoutedEventArgs e)
@@ -344,6 +532,7 @@ public partial class MainWindow : Window
 
     private void OnCanvasSelectionChanged(ShapeModel? selectedShape, bool isEnabled)
     {
+        _selectedShape = selectedShape; // <-- Memorizza la forma selezionata
         _isUpdatingUI = true;
 
         if (selectedShape == null)
