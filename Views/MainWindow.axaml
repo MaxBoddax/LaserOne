@@ -44,22 +44,12 @@
 
 		<!-- 3. BARRA SNAP / OPZIONI GEOMETRICHE IN BASSO -->
 		<Border DockPanel.Dock="Bottom" Height="32" Background="#F2E6E6" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" Padding="8,0">
-			<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-				<StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-					<TextBlock Text="Snap:" FontWeight="Bold" FontSize="11" Foreground="#FF569CD6" VerticalAlignment="Center"/>
-					<CheckBox Content="Endpoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Midpoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Center" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Quadrant" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Intersection" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Perpendicular" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Tangent" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Nearest" IsChecked="False" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox x:Name="GridSnapCheckBox" Content="Grid" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0" IsCheckedChanged="GridSnapCheckBox_IsCheckedChanged"/>
-					<CheckBox Content="SmartPoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-					<CheckBox Content="Ortho" IsChecked="False" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0"/>
-				</StackPanel>
-			</ScrollViewer>
+			<StackPanel Orientation="Horizontal" Spacing="15" VerticalAlignment="Center" Margin="8,0">
+				<TextBlock Text="Snap:" FontWeight="Bold" FontSize="11" Foreground="#FF569CD6" VerticalAlignment="Center"/>
+				<CheckBox x:Name="GridSnapCheckBox" Content="Griglia" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0" IsCheckedChanged="GridSnapCheckBox_IsCheckedChanged"/>
+				<CheckBox x:Name="EndpointSnapCheckBox" Content="Endpoint" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0" IsCheckedChanged="SnapOption_IsCheckedChanged"/>
+				<CheckBox x:Name="CenterSnapCheckBox" Content="Centro" IsChecked="True" FontSize="11" Foreground="#FF569CD6" Padding="4,0,0,0" IsCheckedChanged="SnapOption_IsCheckedChanged"/>
+			</StackPanel>
 		</Border>
 
 		<!-- 4. PANNELLO DESTRA (Controllo e Proprietà) -->
@@ -273,7 +263,7 @@
 							</StackPanel>
 						</Button>
 
-						<!-- NUOVO: Pattern Rettangolare -->
+						<!-- Pattern Rettangolare -->
 						<Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Background="White" Foreground="#FF113333" BorderBrush="#FFCCE0E0" Padding="8,6" Click="RectangularPatternMenuItem_Click">
 							<StackPanel Orientation="Horizontal" Spacing="8">
 								<PathIcon Data="{StaticResource IconRectangle}" Width="12" Height="12" Foreground="#FF006666"/>

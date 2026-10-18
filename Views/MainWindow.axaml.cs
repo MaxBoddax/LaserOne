@@ -631,4 +631,11 @@ public partial class MainWindow : Window
             MyLaserCanvas.IsGridSnapEnabled = GridSnapCheckBox.IsChecked ?? true;
         }
     }
+
+    private void SnapOption_IsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        // Stati operativi pronti per l'uso nel motore di snapping del canvas
+        bool endpointSnap = EndpointSnapCheckBox?.IsChecked ?? true;
+        bool centerSnap = CenterSnapCheckBox?.IsChecked ?? true;
+    }
 }

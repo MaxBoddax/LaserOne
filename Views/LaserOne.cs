@@ -27,7 +27,8 @@ public class LaserOne : Control
         Rotate,
         ScaleTL, ScaleTC, ScaleTR,
         ScaleML, ScaleMR,
-        ScaleBL, ScaleBC, ScaleBR
+        ScaleBL, ScaleBC, ScaleBR,
+        LineStart, LineMid, LineEnd, LineRotate
     }
 
     private ToolMode _currentTool = ToolMode.Selection;
@@ -153,6 +154,21 @@ public class LaserOne : Control
             else if (_selectedShape is CircleShape circle)
             {
                 circle.Radius = Math.Max(1, width / 2.0);
+            }
+            else if (_selectedShape is LineShape line)
+            {
+                double currentLen = Math.Sqrt(Math.Pow(line.X2 - line.X, 2) + Math.Pow(line.Y2 - line.Y, 2));
+                if (currentLen > 0)
+                {
+                    double angle = Math.Atan2(line.Y2 - line.Y, line.X2 - line.X);
+                    line.X2 = line.X + width * Math.Cos(angle);
+                    line.Y2 = line.Y + width * Math.Sin(angle);
+                }
+                else
+                {
+                    line.X2 = line.X + width;
+                    line.Y2 = line.Y;
+                }
             }
             InvalidateVisual();
         }
@@ -472,6 +488,38 @@ public class LaserOne : Control
 
     private void DrawRotatedSelectionHandles(DrawingContext context, ShapeModel shape)
     {
+        if (shape is LineShape line)
+        {
+            Point sStart = WorldToScreen(line.X, line.Y);
+            Point sEnd = WorldToScreen(line.X2, line.Y2);
+            Point sMid = new Point((sStart.X + sEnd.X) / 2.0, (sStart.Y + sEnd.Y) / 2.0);
+
+            var dashPen = new Pen(Brushes.Blue, 1.5);
+            context.DrawLine(dashPen, sStart, sEnd);
+
+            Vector lineDir = new Vector(sEnd.X - sStart.X, sEnd.Y - sStart.Y);
+            lineDir = lineDir.Length > 0 ? Vector.Normalize(lineDir) : new Vector(1, 0);
+            Vector perpUp = new Vector(-lineDir.Y, lineDir.X);
+            Point rotHandle = sMid + perpUp * 18.0;
+
+            context.DrawLine(new Pen(Brushes.Blue, 1), sMid, rotHandle);
+
+            var gripPen = new Pen(Brushes.Blue, 1);
+            var gripBrush = Brushes.White;
+            double gripSize = 6.0;
+            double halfGrip = gripSize / 2.0;
+
+            context.DrawEllipse(gripBrush, gripPen, rotHandle, 4, 4);
+
+            Point[] lineGrips = { sStart, sMid, sEnd };
+            foreach (var g in lineGrips)
+            {
+                var gripRect = new Rect(g.X - halfGrip, g.Y - halfGrip, gripSize, gripSize);
+                context.DrawRectangle(gripBrush, gripPen, gripRect);
+            }
+            return;
+        }
+
         var bbox = GetShapeWorldBounds(shape);
         var center = new Point(bbox.X + bbox.Width / 2.0, bbox.Y + bbox.Height / 2.0);
         double rotDeg = _shapeRotations.TryGetValue(shape, out var r) ? r : 0.0;
@@ -487,11 +535,11 @@ public class LaserOne : Control
         Point sBR = WorldToScreen(wBR.X, wBR.Y);
         Point sBL = WorldToScreen(wBL.X, wBL.Y);
 
-        var dashPen = new Pen(Brushes.Blue, 1.5);
-        context.DrawLine(dashPen, sTL, sTR);
-        context.DrawLine(dashPen, sTR, sBR);
-        context.DrawLine(dashPen, sBR, sBL);
-        context.DrawLine(dashPen, sBL, sTL);
+        var boxPen = new Pen(Brushes.Blue, 1.5);
+        context.DrawLine(boxPen, sTL, sTR);
+        context.DrawLine(boxPen, sTR, sBR);
+        context.DrawLine(boxPen, sBR, sBL);
+        context.DrawLine(boxPen, sBL, sTL);
 
         Point sTC = new Point((sTL.X + sTR.X) / 2.0, (sTL.Y + sTR.Y) / 2.0);
         Point sBC = new Point((sBL.X + sBR.X) / 2.0, (sBL.Y + sBR.Y) / 2.0);
@@ -500,23 +548,23 @@ public class LaserOne : Control
 
         Point[] screenGrips = { sTL, sTC, sTR, sML, sMR, sBL, sBC, sBR };
 
-        var gripPen = new Pen(Brushes.Blue, 1);
-        var gripBrush = Brushes.White;
-        double gripSize = 6.0;
-        double halfGrip = gripSize / 2.0;
+        var gripPenBox = new Pen(Brushes.Blue, 1);
+        var gripBrushBox = Brushes.White;
+        double gripSizeBox = 6.0;
+        double halfGripBox = gripSizeBox / 2.0;
 
         Vector topDir = new Vector(sTR.X - sTL.X, sTR.Y - sTL.Y);
         topDir = topDir.Length > 0 ? Vector.Normalize(topDir) : new Vector(0, -1);
-        Vector perpUp = new Vector(-topDir.Y, topDir.X);
-        Point rotHandle = sTC + perpUp * 18.0;
+        Vector perpUpBox = new Vector(-topDir.Y, topDir.X);
+        Point rotHandleBox = sTC + perpUpBox * 18.0;
 
-        context.DrawLine(new Pen(Brushes.Blue, 1), sTC, rotHandle);
-        context.DrawEllipse(gripBrush, gripPen, rotHandle, 4, 4);
+        context.DrawLine(new Pen(Brushes.Blue, 1), sTC, rotHandleBox);
+        context.DrawEllipse(gripBrushBox, gripPenBox, rotHandleBox, 4, 4);
 
         foreach (var g in screenGrips)
         {
-            var gripRect = new Rect(g.X - halfGrip, g.Y - halfGrip, gripSize, gripSize);
-            context.DrawRectangle(gripBrush, gripPen, gripRect);
+            var gripRect = new Rect(g.X - halfGripBox, g.Y - halfGripBox, gripSizeBox, gripSizeBox);
+            context.DrawRectangle(gripBrushBox, gripPenBox, gripRect);
         }
     }
 
@@ -598,9 +646,46 @@ public class LaserOne : Control
 
     private InteractionMode HitTestHandles(Point mousePos, ShapeModel shape)
     {
+        if (shape is LineShape line)
+        {
+            Point sStart = WorldToScreen(line.X, line.Y);
+            Point sEnd = WorldToScreen(line.X2, line.Y2);
+            Point sMid = new Point((sStart.X + sEnd.X) / 2.0, (sStart.Y + sEnd.Y) / 2.0);
+
+            Vector lineDir = new Vector(sEnd.X - sStart.X, sEnd.Y - sStart.Y);
+            lineDir = lineDir.Length > 0 ? Vector.Normalize(lineDir) : new Vector(1, 0);
+            Vector perpUp = new Vector(-lineDir.Y, lineDir.X);
+            Point rotHandle = sMid + perpUp * 18.0;
+
+            if (HitTestPoint(mousePos, sStart)) return InteractionMode.LineStart;
+            if (HitTestPoint(mousePos, sEnd)) return InteractionMode.LineEnd;
+            if (HitTestPoint(mousePos, rotHandle)) return InteractionMode.LineRotate;
+            if (HitTestPoint(mousePos, sMid)) return InteractionMode.LineMid;
+
+            var worldMouse = ScreenToWorld(mousePos);
+            if (IsPointNearLine(worldMouse, new Point(line.X, line.Y), new Point(line.X2, line.Y2), 6.0 / m_zoomFactor))
+            {
+                return InteractionMode.Move;
+            }
+
+            return InteractionMode.None;
+        }
+
         var bbox = GetShapeWorldBounds(shape);
         double rotDeg = _shapeRotations.TryGetValue(shape, out var r) ? r : 0.0;
         return HitTestBox(mousePos, bbox, rotDeg);
+    }
+
+    private bool IsPointNearLine(Point2D p, Point a, Point b, double tolerance)
+    {
+        double l2 = (b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y);
+        if (l2 == 0) return Math.Sqrt(Math.Pow(p.X - a.X, 2) + Math.Pow(p.Y - a.Y, 2)) <= tolerance;
+        double t = ((p.X - a.X) * (b.X - a.X) + (p.Y - a.Y) * (b.Y - a.Y)) / l2;
+        t = Math.Max(0, Math.Min(1, t));
+        double projX = a.X + t * (b.X - a.X);
+        double projY = a.Y + t * (b.Y - a.Y);
+        double dist = Math.Sqrt(Math.Pow(p.X - projX, 2) + Math.Pow(p.Y - projY, 2));
+        return dist <= tolerance;
     }
 
     private bool HitTestPoint(Point p1, Point p2)
@@ -797,7 +882,13 @@ public class LaserOne : Control
                     _origHeight = _shapeOriginalBbox.Height;
                     _origRotation = _shapeRotations.TryGetValue(_selectedShape, out var r) ? r : 0.0;
                     if (_selectedShape is CircleShape circ) _origRadius = circ.Radius;
-                    if (_selectedShape is LineShape line) { _origX2 = line.X2; _origY2 = line.Y2; }
+                    if (_selectedShape is LineShape line)
+                    {
+                        _origX = line.X;
+                        _origY = line.Y;
+                        _origX2 = line.X2;
+                        _origY2 = line.Y2;
+                    }
 
                     e.Pointer.Capture(this);
                     e.Handled = true;
@@ -807,7 +898,7 @@ public class LaserOne : Control
 
             var worldPos = ScreenToWorld(mousePos);
 
-            // 2. Se ci sono più forme selezionate (es. ingranaggio), verifica maniglie o movimento del gruppo
+            // 2. Se ci sono più forme selezionate
             if (_selectedShapes.Count > 1)
             {
                 var groupBbox = GetCombinedWorldBounds(_selectedShapes);
@@ -860,12 +951,7 @@ public class LaserOne : Control
                 }
                 else if (shape is LineShape line)
                 {
-                    double minX = Math.Min(line.X, line.X2);
-                    double maxX = Math.Max(line.X, line.X2);
-                    double minY = Math.Min(line.Y, line.Y2);
-                    double maxY = Math.Max(line.Y, line.Y2);
-                    if (invWorldMouse.X >= minX - 3 && invWorldMouse.X <= maxX + 3 &&
-                        invWorldMouse.Y >= minY - 3 && invWorldMouse.Y <= maxY + 3)
+                    if (IsPointNearLine(worldPos, new Point(line.X, line.Y), new Point(line.X2, line.Y2), 6.0 / m_zoomFactor))
                     {
                         clickedShape = shape;
                         break;
@@ -896,6 +982,13 @@ public class LaserOne : Control
 
                 _currentInteraction = InteractionMode.Move;
                 _dragStartWorldPos = worldPos;
+                if (_selectedShape is LineShape lineShape)
+                {
+                    _origX = lineShape.X;
+                    _origY = lineShape.Y;
+                    _origX2 = lineShape.X2;
+                    _origY2 = lineShape.Y2;
+                }
                 StoreOriginalShapeStates();
                 e.Pointer.Capture(this);
             }
@@ -1044,7 +1137,42 @@ public class LaserOne : Control
             double deltaX = currentWorldPos.X - _dragStartWorldPos.X;
             double deltaY = currentWorldPos.Y - _dragStartWorldPos.Y;
 
-            if (_currentInteraction == InteractionMode.Move)
+            if (_selectedShape is LineShape line && _selectedShapes.Count == 1)
+            {
+                if (_currentInteraction == InteractionMode.LineStart)
+                {
+                    line.X = currentWorldPos.X;
+                    line.Y = currentWorldPos.Y;
+                }
+                else if (_currentInteraction == InteractionMode.LineEnd)
+                {
+                    line.X2 = currentWorldPos.X;
+                    line.Y2 = currentWorldPos.Y;
+                }
+                else if (_currentInteraction == InteractionMode.LineMid || _currentInteraction == InteractionMode.Move)
+                {
+                    line.X = _origX + deltaX;
+                    line.Y = _origY + deltaY;
+                    line.X2 = _origX2 + deltaX;
+                    line.Y2 = _origY2 + deltaY;
+                }
+                else if (_currentInteraction == InteractionMode.LineRotate)
+                {
+                    var mid = new Point((_origX + _origX2) / 2.0, (_origY + _origY2) / 2.0);
+                    double initialAngle = Math.Atan2(_dragStartWorldPos.Y - mid.Y, _dragStartWorldPos.X - mid.X);
+                    double currentAngle = Math.Atan2(currentWorldPos.Y - mid.Y, currentWorldPos.X - mid.X);
+                    double deltaAngle = currentAngle - initialAngle;
+
+                    Point rStart = RotatePoint(_origX, _origY, mid, deltaAngle);
+                    Point rEnd = RotatePoint(_origX2, _origY2, mid, deltaAngle);
+
+                    line.X = rStart.X;
+                    line.Y = rStart.Y;
+                    line.X2 = rEnd.X;
+                    line.Y2 = rEnd.Y;
+                }
+            }
+            else if (_currentInteraction == InteractionMode.Move)
             {
                 foreach (var shp in _selectedShapes)
                 {
@@ -1052,10 +1180,12 @@ public class LaserOne : Control
                     {
                         shp.X = orig.X + deltaX;
                         shp.Y = orig.Y + deltaY;
-                        if (shp is LineShape line)
+                        if (shp is LineShape l)
                         {
-                            line.X2 = orig.X2 + deltaX;
-                            line.Y2 = orig.Y2 + deltaY;
+                            l.X = orig.X + deltaX;
+                            l.Y = orig.Y + deltaY;
+                            l.X2 = orig.X2 + deltaX;
+                            l.Y2 = orig.Y2 + deltaY;
                         }
                         else if (shp is CircleShape circle)
                         {
@@ -1072,7 +1202,6 @@ public class LaserOne : Control
             }
             else if (_selectedShapes.Count > 1 && _currentInteraction >= InteractionMode.ScaleTL && _currentInteraction <= InteractionMode.ScaleBR)
             {
-                // Ridimensionamento proporzionale di gruppo (es. ingranaggio)
                 double newW = Math.Max(1, _origWidth + deltaX);
                 double scaleFactor = newW / _origWidth;
                 scaleFactor = Math.Max(0.1, scaleFactor);
@@ -1087,10 +1216,12 @@ public class LaserOne : Control
                         shp.X = groupCenterX + (orig.X - groupCenterX) * scaleFactor;
                         shp.Y = groupCenterY + (orig.Y - groupCenterY) * scaleFactor;
 
-                        if (shp is LineShape line)
+                        if (shp is LineShape l)
                         {
-                            line.X2 = groupCenterX + (orig.X2 - groupCenterX) * scaleFactor;
-                            line.Y2 = groupCenterY + (orig.Y2 - groupCenterY) * scaleFactor;
+                            l.X = groupCenterX + (orig.X - groupCenterX) * scaleFactor;
+                            l.Y = groupCenterY + (orig.Y - groupCenterY) * scaleFactor;
+                            l.X2 = groupCenterX + (orig.X2 - groupCenterX) * scaleFactor;
+                            l.Y2 = groupCenterY + (orig.Y2 - groupCenterY) * scaleFactor;
                         }
                         else if (shp is CircleShape circle)
                         {
