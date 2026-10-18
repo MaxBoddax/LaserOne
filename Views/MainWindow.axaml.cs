@@ -2,6 +2,7 @@ using System;
 using System.IO.Ports;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -201,6 +202,13 @@ public partial class MainWindow : Window
         base.OnClosed(e);
     }
 
+    // --- GESTIONE MENU ESCI ---
+
+    private void OnExitClick(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     // --- GESTIONE TERMINALE E STREAMING G-CODE ---
 
     private void SendCommand_Click(object? sender, RoutedEventArgs e)
@@ -280,6 +288,56 @@ public partial class MainWindow : Window
         }
 
         AppendToConsole("--- Lavoro Completato ---\n");
+    }
+
+    // --- IMPORTAZIONE DXF ---
+
+    public void OpenDxfMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        _ = OpenDxfFileTaskAsync();
+    }
+
+    private async Task OpenDxfFileTaskAsync()
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Apri File Vettoriale DXF",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("File DXF")
+                {
+                    Patterns = new[] { "*.dxf" }
+                },
+                new Avalonia.Platform.Storage.FilePickerFileType("Tutti i file")
+                {
+                    Patterns = new[] { "*.*" }
+                }
+            }
+        });
+
+        if (files.Count > 0)
+        {
+            var file = files[0];
+            string path = file.Path.LocalPath;
+
+            var importedShapes = global::LaserOne.Tools.DxfImporter.Import(path);
+            if (importedShapes.Count > 0)
+            {
+                foreach (var shape in importedShapes)
+                {
+                    MyLaserCanvas.AddShape(shape);
+                }
+                AppendToConsole($"📁 Importati con successo {importedShapes.Count} elementi da: {file.Name}\n");
+            }
+            else
+            {
+                AppendToConsole($"⚠️ Nessuna forma compatibile trovata nel file DXF: {file.Name}\n");
+            }
+        }
     }
 
     // --- GESTIONE SELEZIONE E PROPRIETÀ ---

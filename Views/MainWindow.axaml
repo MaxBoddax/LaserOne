@@ -5,7 +5,7 @@
         xmlns:views="using:LaserOne.Views"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="LaserOne.Views.MainWindow"
-        Title="LaserOne v0.7"
+        Title="LaserOne v0.8"
         Icon="/Assets/app.ico"
         Width="1280" Height="800">
 	<DockPanel LastChildFill="True">
@@ -13,9 +13,9 @@
 		<Menu DockPanel.Dock="Top" Background="#FFF0F0F0">
 			<MenuItem Header="_File">
 				<MenuItem Header="_Nuovo"/>
-				<MenuItem Header="_Apri..."/>
+				<MenuItem Header="_Apri DXF..." Click="OpenDxfMenuItem_Click"/>
 				<Separator/>
-				<MenuItem Header="_Esci"/>
+				<MenuItem Header="_Esci" Click="OnExitClick"/>
 			</MenuItem>
 			<MenuItem Header="_Modifica">
 				<MenuItem Header="_Annulla"/>
