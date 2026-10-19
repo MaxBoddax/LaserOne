@@ -285,10 +285,10 @@ public partial class MainWindow : Window
             }
 
             // Aggiunge le 4 linee perimetrali del rettangolo ruotato radialmente
-            MyLaserCanvas.AddShape(new LineShape { X = wx[0], Y = wy[0], X2 = wx[1], Y2 = wy[1] }); // Top
-            MyLaserCanvas.AddShape(new LineShape { X = wx[1], Y = wy[1], X2 = wx[2], Y2 = wy[2] }); // Right
-            MyLaserCanvas.AddShape(new LineShape { X = wx[2], Y = wy[2], X2 = wx[3], Y2 = wy[3] }); // Bottom
-            MyLaserCanvas.AddShape(new LineShape { X = wx[3], Y = wy[3], X2 = wx[0], Y2 = wy[0] }); // Left
+            MyLaserCanvas.AddShape(new LineShape { X = wx[0], Y = wy[0], X2 = wx[1], Y2 = wy[1], Mode = original.Mode, Power = original.Power, Speed = original.Speed, Passes = original.Passes }); // Top
+            MyLaserCanvas.AddShape(new LineShape { X = wx[1], Y = wy[1], X2 = wx[2], Y2 = wy[2], Mode = original.Mode, Power = original.Power, Speed = original.Speed, Passes = original.Passes }); // Right
+            MyLaserCanvas.AddShape(new LineShape { X = wx[2], Y = wy[2], X2 = wx[3], Y2 = wy[3], Mode = original.Mode, Power = original.Power, Speed = original.Speed, Passes = original.Passes }); // Bottom
+            MyLaserCanvas.AddShape(new LineShape { X = wx[3], Y = wy[3], X2 = wx[0], Y2 = wy[0], Mode = original.Mode, Power = original.Power, Speed = original.Speed, Passes = original.Passes }); // Left
         }
         else if (original is CircleShape circle)
         {
@@ -299,7 +299,11 @@ public partial class MainWindow : Window
             {
                 X = newX,
                 Y = newY,
-                Radius = circle.Radius
+                Radius = circle.Radius,
+                Mode = original.Mode,
+                Power = original.Power,
+                Speed = original.Speed,
+                Passes = original.Passes
             });
         }
         else if (original is LineShape line)
@@ -315,7 +319,11 @@ public partial class MainWindow : Window
                 X = newX1,
                 Y = newY1,
                 X2 = newX2,
-                Y2 = newY2
+                Y2 = newY2,
+                Mode = original.Mode,
+                Power = original.Power,
+                Speed = original.Speed,
+                Passes = original.Passes
             });
         }
     }
@@ -371,7 +379,11 @@ public partial class MainWindow : Window
                 X = rect.X + dx,
                 Y = rect.Y + dy,
                 Width = rect.Width,
-                Height = rect.Height
+                Height = rect.Height,
+                Mode = original.Mode,
+                Power = original.Power,
+                Speed = original.Speed,
+                Passes = original.Passes
             };
         }
         else if (original is CircleShape circle)
@@ -380,7 +392,11 @@ public partial class MainWindow : Window
             {
                 X = circle.X + dx,
                 Y = circle.Y + dy,
-                Radius = circle.Radius
+                Radius = circle.Radius,
+                Mode = original.Mode,
+                Power = original.Power,
+                Speed = original.Speed,
+                Passes = original.Passes
             };
         }
         else if (original is LineShape line)
@@ -390,7 +406,11 @@ public partial class MainWindow : Window
                 X = line.X + dx,
                 Y = line.Y + dy,
                 X2 = line.X2 + dx,
-                Y2 = line.Y2 + dy
+                Y2 = line.Y2 + dy,
+                Mode = original.Mode,
+                Power = original.Power,
+                Speed = original.Speed,
+                Passes = original.Passes
             };
         }
 
@@ -464,10 +484,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Genera il G-Code dalle forme usando global:: per evitare conflitti con la classe LaserOne
-        var gcodeLines = global::LaserOne.Tools.GCodeGenerator.Generate(shapes, laserPower: 800, feedRate: 1200);
+        // Genera il G-Code dalle forme leggendo i parametri specifici di ciascuna (v1.0)
+        var gcodeLines = global::LaserOne.Tools.GCodeGenerator.Generate(shapes);
 
-        AppendToConsole($"--- Inizio Lavoro ({gcodeLines.Count} istruzioni) ---\n");
+        AppendToConsole($"--- Inizio Lavoro v1.0 ({gcodeLines.Count} istruzioni) ---\n");
 
         foreach (var line in gcodeLines)
         {
@@ -478,7 +498,7 @@ public partial class MainWindow : Window
         AppendToConsole("--- Lavoro Completato ---\n");
     }
 
-    // --- IMPORTAZIONE DXF ---
+    // --- IMPORTAZIONE ED ESPORTAZIONE DXF ---
 
     public void OpenDxfMenuItem_Click(object? sender, RoutedEventArgs e)
     {
@@ -528,6 +548,44 @@ public partial class MainWindow : Window
         }
     }
 
+    public void SaveDxfMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        _ = SaveDxfFileTaskAsync();
+    }
+
+    private async Task SaveDxfFileTaskAsync()
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = "Salva File Vettoriale DXF",
+            DefaultExtension = "dxf",
+            FileTypeChoices = new[]
+            {
+                new Avalonia.Platform.Storage.FilePickerFileType("File DXF")
+                {
+                    Patterns = new[] { "*.dxf" }
+                }
+            }
+        });
+
+        if (file != null)
+        {
+            string path = file.Path.LocalPath;
+            try
+            {
+                global::LaserOne.Tools.DxfExporter.Export(path, MyLaserCanvas.Shapes);
+                AppendToConsole($"💾 Esportati con successo {MyLaserCanvas.Shapes.Count} elementi in: {file.Name}\n");
+            }
+            catch (Exception ex)
+            {
+                AppendToConsole($"⚠️ Errore durante il salvataggio del file DXF: {ex.Message}\n");
+            }
+        }
+    }
+
     // --- GESTIONE SELEZIONE E PROPRIETÀ ---
 
     private void OnCanvasSelectionChanged(ShapeModel? selectedShape, bool isEnabled)
@@ -543,6 +601,10 @@ public partial class MainWindow : Window
             NumY.Value = 0m;
             NumWidth.Value = 1m;
             NumHeight.Value = 1m;
+            ComboMode.SelectedIndex = 0;
+            NumPower.Value = 800m;
+            NumSpeed.Value = 1200m;
+            NumPasses.Value = 1m;
         }
         else
         {
@@ -550,6 +612,12 @@ public partial class MainWindow : Window
             NoSelectionText.IsVisible = false;
             NumX.Value = (decimal)selectedShape.X;
             NumY.Value = (decimal)selectedShape.Y;
+
+            // Popola i parametri laser stile LightBurn (v1.0)
+            ComboMode.SelectedIndex = (int)selectedShape.Mode;
+            NumPower.Value = (decimal)selectedShape.Power;
+            NumSpeed.Value = (decimal)selectedShape.Speed;
+            NumPasses.Value = selectedShape.Passes;
 
             if (selectedShape is RectangleShape rect)
             {
@@ -581,6 +649,28 @@ public partial class MainWindow : Window
         double height = (double)(NumHeight.Value ?? 1);
 
         MyLaserCanvas.UpdateSelectedShapeProperties(x, y, width, height);
+
+        // Aggiorna anche le proprietà laser v1.0 sulla forma selezionata
+        if (_selectedShape != null)
+        {
+            _selectedShape.Power = (double)(NumPower.Value ?? 800);
+            _selectedShape.Speed = (double)(NumSpeed.Value ?? 1200);
+            _selectedShape.Passes = (int)(NumPasses.Value ?? 1);
+        }
+    }
+
+    private void Mode_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isUpdatingUI || _selectedShape == null) return;
+
+        if (ComboMode.SelectedIndex == 0)
+        {
+            _selectedShape.Mode = LaserMode.Cut;
+        }
+        else if (ComboMode.SelectedIndex == 1)
+        {
+            _selectedShape.Mode = LaserMode.Engrave;
+        }
     }
 
     private void SelectionMenuItem_Click(object? sender, RoutedEventArgs e)

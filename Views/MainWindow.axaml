@@ -5,7 +5,7 @@
         xmlns:views="using:LaserOne.Views"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="LaserOne.Views.MainWindow"
-        Title="LaserOne v0.9"
+        Title="LaserOne v1.0"
         Icon="/Assets/app.ico"
         Width="1280" Height="800">
 	<DockPanel LastChildFill="True">
@@ -14,6 +14,7 @@
 			<MenuItem Header="_File">
 				<MenuItem Header="_Nuovo"/>
 				<MenuItem Header="_Apri DXF..." Click="OpenDxfMenuItem_Click"/>
+				<MenuItem Header="_Salva DXF..." Click="SaveDxfMenuItem_Click"/>
 				<Separator/>
 				<MenuItem Header="_Esci" Click="OnExitClick"/>
 			</MenuItem>
@@ -169,12 +170,12 @@
 						</StackPanel>
 					</Border>
 
-					<!-- PANNELLO PROPRIETÀ OGGETTO -->
+					<!-- PANNELLO PROPRIETÀ OGGETTO (Stile LightBurn v1.0) -->
 					<Border Background="White" BorderBrush="#FFCCCCCC" BorderThickness="1" CornerRadius="4" Padding="8">
 						<StackPanel Spacing="5">
 							<TextBlock Text="Proprietà Oggetto" FontWeight="SemiBold" FontSize="12" Foreground="DimGray"/>
 							<StackPanel x:Name="PropertiesPanel" Spacing="6" IsEnabled="False" Margin="0,4,0,0">
-								<Grid ColumnDefinitions="75, *" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="5">
+								<Grid ColumnDefinitions="75, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5">
 									<TextBlock Grid.Row="0" Grid.Column="0" Text="X (mm):" VerticalAlignment="Center" FontSize="11"/>
 									<NumericUpDown Grid.Row="0" Grid.Column="1" x:Name="NumX" FormatString="0.##" Minimum="-3000" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
 
@@ -186,6 +187,22 @@
 
 									<TextBlock Grid.Row="3" Grid.Column="0" Text="Altezza:" VerticalAlignment="Center" FontSize="11"/>
 									<NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="NumHeight" FormatString="0.##" Minimum="1" Maximum="3000" Increment="1" ValueChanged="Property_ValueChanged"/>
+
+									<!-- Nuovi campi v1.0 -->
+									<TextBlock Grid.Row="4" Grid.Column="0" Text="Modalità:" VerticalAlignment="Center" FontSize="11"/>
+									<ComboBox Grid.Row="4" Grid.Column="1" x:Name="ComboMode" Height="28" SelectionChanged="Mode_SelectionChanged">
+										<ComboBoxItem Content="Taglio (Cut)"/>
+										<ComboBoxItem Content="Incisione (Engrave)"/>
+									</ComboBox>
+
+									<TextBlock Grid.Row="5" Grid.Column="0" Text="Potenza (S):" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="5" Grid.Column="1" x:Name="NumPower" FormatString="0" Minimum="0" Maximum="1000" Increment="50" ValueChanged="Property_ValueChanged"/>
+
+									<TextBlock Grid.Row="6" Grid.Column="0" Text="Velocità (F):" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="6" Grid.Column="1" x:Name="NumSpeed" FormatString="0" Minimum="1" Maximum="10000" Increment="100" ValueChanged="Property_ValueChanged"/>
+
+									<TextBlock Grid.Row="7" Grid.Column="0" Text="Passate:" VerticalAlignment="Center" FontSize="11"/>
+									<NumericUpDown Grid.Row="7" Grid.Column="1" x:Name="NumPasses" FormatString="0" Minimum="1" Maximum="50" Increment="1" ValueChanged="Property_ValueChanged"/>
 								</Grid>
 							</StackPanel>
 							<TextBlock x:Name="NoSelectionText" Text="Nessuna selezione" FontSize="11" FontStyle="Italic" Foreground="Gray" Margin="0,5,0,0"/>

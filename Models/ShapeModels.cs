@@ -2,11 +2,23 @@
 
 namespace LaserOne.Models;
 
+public enum LaserMode
+{
+    Cut,
+    Engrave
+}
+
 public abstract class ShapeModel
 {
     public double X { get; set; }
     public double Y { get; set; }
     public bool IsSelected { get; set; }
+
+    // Proprietà stile LightBurn per la v1.0
+    public LaserMode Mode { get; set; } = LaserMode.Cut;
+    public double Power { get; set; } = 800.0;    // Potenza laser (S)
+    public double Speed { get; set; } = 1200.0;   // Velocità di lavoro (Feed Rate F)
+    public int Passes { get; set; } = 1;          // Numero di passate
 
     protected ShapeModel() { }
 
